@@ -1629,3 +1629,283 @@
     background: #fff;
   }
 }
+
+.settings-page {
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+.settings-intro {
+  padding: 18px 0 28px;
+  border-bottom: 1px solid #eeede9;
+}
+
+.settings-intro h2 {
+  margin: 0 0 8px;
+  color: #37352f;
+  font-size: clamp(1.7rem, 3vw, 2.2rem);
+  letter-spacing: -0.035em;
+}
+
+.settings-intro > p:last-child {
+  color: #787774;
+}
+
+.settings-group {
+  padding: 22px 0;
+  border-bottom: 1px solid #eeede9;
+}
+
+.settings-group h3 {
+  margin: 0 0 14px;
+  color: #787774;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.settings-row > div:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.settings-row strong {
+  color: #37352f;
+  font-weight: 500;
+}
+
+.settings-row small,
+.settings-note {
+  color: #787774;
+}
+
+.settings-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.settings-note {
+  margin-top: 20px;
+  font-size: 0.82rem;
+}
+
+@media (max-width: 560px) {
+  .settings-row {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
+  }
+}
+
+.app-shell[data-theme='dark'] {
+  background: #191919;
+  color: #e5e5e5;
+}
+
+.app-shell[data-theme='dark'] .sidebar,
+.app-shell[data-theme='dark'] .brand {
+  background: #202020;
+  border-color: #303030;
+}
+
+.app-shell[data-theme='dark'] .brand-mark,
+.app-shell[data-theme='dark'] .nav-item span {
+  background: #333;
+  color: #d4d4d4;
+}
+
+.app-shell[data-theme='dark'] .brand strong,
+.app-shell[data-theme='dark'] .sidebar-card h4,
+.app-shell[data-theme='dark'] .nav-item,
+.app-shell[data-theme='dark'] .nav-item strong,
+.app-shell[data-theme='dark'] .panel-header h3,
+.app-shell[data-theme='dark'] .stack-list strong,
+.app-shell[data-theme='dark'] .mini-list strong,
+.app-shell[data-theme='dark'] .task-row strong,
+.app-shell[data-theme='dark'] .task-item strong,
+.app-shell[data-theme='dark'] .goal-item strong,
+.app-shell[data-theme='dark'] .metric-row strong,
+.app-shell[data-theme='dark'] .detail-row strong,
+.app-shell[data-theme='dark'] .note-card strong,
+.app-shell[data-theme='dark'] .goal-card strong,
+.app-shell[data-theme='dark'] .calendar-task-list strong,
+.app-shell[data-theme='dark'] .schedule-list strong,
+.app-shell[data-theme='dark'] .topbar h1,
+.app-shell[data-theme='dark'] .stat-card strong,
+.app-shell[data-theme='dark'] .hero-panel h2,
+.app-shell[data-theme='dark'] .hero-metrics strong,
+.app-shell[data-theme='dark'] .habit-badge strong,
+.app-shell[data-theme='dark'] .settings-intro h2,
+.app-shell[data-theme='dark'] .settings-row strong {
+  color: #e5e5e5;
+}
+
+.app-shell[data-theme='dark'] .brand span,
+.app-shell[data-theme='dark'] .nav-item small,
+.app-shell[data-theme='dark'] .sidebar-card small,
+.app-shell[data-theme='dark'] .eyebrow,
+.app-shell[data-theme='dark'] .panel-header span,
+.app-shell[data-theme='dark'] .stack-list small,
+.app-shell[data-theme='dark'] .mini-list small,
+.app-shell[data-theme='dark'] .task-item small,
+.app-shell[data-theme='dark'] .task-row small,
+.app-shell[data-theme='dark'] .goal-item small,
+.app-shell[data-theme='dark'] .metric-row small,
+.app-shell[data-theme='dark'] .note-card small,
+.app-shell[data-theme='dark'] .goal-card small,
+.app-shell[data-theme='dark'] .pill,
+.app-shell[data-theme='dark'] .stat-card small,
+.app-shell[data-theme='dark'] .stat-card h3,
+.app-shell[data-theme='dark'] .calendar-empty,
+.app-shell[data-theme='dark'] .settings-intro > p:last-child,
+.app-shell[data-theme='dark'] .settings-row small,
+.app-shell[data-theme='dark'] .settings-note,
+.app-shell[data-theme='dark'] .settings-group h3 {
+  color: #a3a3a3;
+}
+
+.app-shell[data-theme='dark'] .nav-item:hover,
+.app-shell[data-theme='dark'] .nav-item.active {
+  background: #303030;
+}
+
+.app-shell[data-theme='dark'] .sidebar-card {
+  background: #292929;
+  border-color: #373737;
+}
+
+.app-shell[data-theme='dark'] .main-panel,
+.app-shell[data-theme='dark'] .topbar {
+  background: #191919;
+  border-color: #303030;
+}
+
+.app-shell[data-theme='dark'] .date-pill {
+  background: #222;
+  border-color: #383838;
+  color: #cbd5e1;
+}
+
+.app-shell[data-theme='dark'] .menu-toggle {
+  border-color: #383838;
+  color: #e5e5e5;
+}
+
+.app-shell[data-theme='dark'] .panel-header,
+.app-shell[data-theme='dark'] .hero-panel,
+.app-shell[data-theme='dark'] .settings-intro,
+.app-shell[data-theme='dark'] .settings-group {
+  border-color: #303030;
+}
+
+.app-shell[data-theme='dark'] .progress-bar {
+  background: #333;
+}
+
+.app-shell[data-theme='dark'] .progress-bar span {
+  background: #a78bfa;
+}
+
+.app-shell[data-theme='dark'] .quick-add input,
+.app-shell[data-theme='dark'] .calendar-form input {
+  background: #252525;
+  border-color: #383838;
+  color: #f8fafc;
+  color-scheme: dark;
+}
+
+.app-shell[data-theme='dark'] .quick-add button {
+  background: #dedede;
+  color: #111827;
+}
+
+.app-shell[data-theme='dark'] .calendar-day {
+  background: #242424;
+  border-color: #333;
+  color: #cbd5e1;
+}
+
+.app-shell[data-theme='dark'] .calendar-day.day-active {
+  background: #38333f;
+  border-color: #695b7d;
+  color: #f5d0fe;
+}
+
+.app-shell[data-theme='dark'] .calendar-day-label {
+  color: #a3a3a3;
+}
+
+.app-shell[data-theme='dark'] .calendar-day-count,
+.app-shell[data-theme='dark'] .calendar-task-list time,
+.app-shell[data-theme='dark'] .hero-metrics span,
+.app-shell[data-theme='dark'] .schedule-list span,
+.app-shell[data-theme='dark'] .detail-row span,
+.app-shell[data-theme='dark'] .calendar-form label {
+  color: #a3a3a3;
+}
+
+.app-shell[data-theme='dark'] .calendar-task-list li,
+.app-shell[data-theme='dark'] .task-item,
+.app-shell[data-theme='dark'] .schedule-list div {
+  background: #252525;
+  border-color: #333;
+}
+
+.app-shell[data-theme='dark'] .task-item:hover,
+.app-shell[data-theme='dark'] .mobile-tab.active,
+.app-shell[data-theme='dark'] .mobile-more-item.active {
+  background: #303030;
+}
+
+.app-shell[data-theme='dark'] .mobile-tabbar,
+.app-shell[data-theme='dark'] .mobile-more-sheet {
+  background: #202020;
+  border-color: #353535;
+}
+
+.app-shell[data-theme='dark'] .mobile-tab {
+  color: #a3a3a3;
+}
+
+.app-shell[data-theme='dark'] .mobile-tab.active,
+.app-shell[data-theme='dark'] .mobile-more-heading button,
+.app-shell[data-theme='dark'] .mobile-more-item {
+  color: #e5e5e5;
+}
+
+.app-shell[data-theme='dark'] .mobile-more-heading button,
+.app-shell[data-theme='dark'] .mobile-more-item {
+  background: #252525;
+  border-color: #383838;
+}
+
+.app-shell[data-theme='dark'] .mobile-more-backdrop,
+.app-shell[data-theme='dark'] .sidebar-backdrop {
+  background: rgba(0, 0, 0, 0.58);
+}
+
+.app-shell[data-theme='dark'] .settings-options .chip {
+  border-color: #383838;
+  color: #d4d4d4;
+}
+
+.app-shell[data-theme='dark'] .settings-options .chip.active {
+  background: #303030;
+  color: #fff;
+}
+
+@media (max-width: 860px) {
+  .app-shell[data-theme='dark'] .sidebar {
+    background: #202020;
+  }
+}

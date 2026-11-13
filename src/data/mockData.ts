@@ -21,6 +21,7 @@ export const navSections: NavSection[] = [
   { id: 'Calendar', icon: '◩', description: 'Schedule' },
   { id: 'Life Overview', icon: '◬', description: 'Balance' },
   { id: 'Insights & Reviews', icon: '◔', description: 'Reports' },
+  { id: 'Settings', icon: '⚙', description: 'Preferences' },
 ]
 
 export const taskSeed: Task[] = [

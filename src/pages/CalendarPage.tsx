@@ -1,9 +1,10 @@
 import { useMemo, useState, type FormEvent } from 'react'
 import { calendarDays } from '../data/mockData'
-import type { Task } from '../types'
+import type { Task, WeekStartsOn } from '../types'
 
 type CalendarPageProps = {
   taskList: Task[]
+  weekStartsOn: WeekStartsOn
   onAddTask: (title: string, scheduledDate: string, time: string) => void
 }
 
@@ -17,7 +18,7 @@ const toDateKey = (date: Date) => {
 const formatDate = (date: Date, options: Intl.DateTimeFormatOptions) =>
   new Intl.DateTimeFormat('en-US', options).format(date)
 
-export default function CalendarPage({ taskList, onAddTask }: CalendarPageProps) {
+export default function CalendarPage({ taskList, weekStartsOn, onAddTask }: CalendarPageProps) {
   const [visibleMonth, setVisibleMonth] = useState(() => {
     const today = new Date()
     return new Date(today.getFullYear(), today.getMonth(), 1)
@@ -28,14 +29,20 @@ export default function CalendarPage({ taskList, onAddTask }: CalendarPageProps)
 
   const calendarDates = useMemo(() => {
     const firstOfMonth = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth(), 1)
-    const mondayOffset = (firstOfMonth.getDay() + 6) % 7
+    const weekdayOffset = weekStartsOn === 'monday'
+      ? (firstOfMonth.getDay() + 6) % 7
+      : firstOfMonth.getDay()
     const daysInMonth = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + 1, 0).getDate()
-    const cellCount = Math.ceil((mondayOffset + daysInMonth) / 7) * 7
+    const cellCount = Math.ceil((weekdayOffset + daysInMonth) / 7) * 7
 
     return Array.from({ length: cellCount }, (_, index) =>
-      new Date(visibleMonth.getFullYear(), visibleMonth.getMonth(), index - mondayOffset + 1),
+      new Date(visibleMonth.getFullYear(), visibleMonth.getMonth(), index - weekdayOffset + 1),
     )
-  }, [visibleMonth])
+  }, [visibleMonth, weekStartsOn])
+
+  const weekdayLabels = weekStartsOn === 'monday'
+    ? calendarDays
+    : [...calendarDays.slice(-1), ...calendarDays.slice(0, -1)]
 
   const selectedTasks = taskList
     .filter((task) => task.scheduledDate === selectedDate)
@@ -89,7 +96,7 @@ export default function CalendarPage({ taskList, onAddTask }: CalendarPageProps)
           </div>
         </div>
         <div className="calendar-grid">
-          {calendarDays.map((day) => (
+          {weekdayLabels.map((day) => (
             <div key={day} className="calendar-day-label">{day}</div>
           ))}
           {calendarDates.map((date) => {

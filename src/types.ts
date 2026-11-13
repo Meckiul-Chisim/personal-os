@@ -10,6 +10,10 @@ export type SectionName =
   | 'Calendar'
   | 'Life Overview'
   | 'Insights & Reviews'
+  | 'Settings'
+
+export type AppTheme = 'light' | 'dark'
+export type WeekStartsOn = 'monday' | 'sunday'
 
 export type TaskStatus = 'Not started' | 'In progress' | 'Waiting' | 'Completed'
 export type Priority = 'High' | 'Medium' | 'Low'

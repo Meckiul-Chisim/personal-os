@@ -24,8 +24,9 @@ import JournalPage from './pages/JournalPage'
 import LifeOverviewPage from './pages/LifeOverviewPage'
 import MyDayPage from './pages/MyDayPage'
 import ProjectsPage from './pages/ProjectsPage'
+import SettingsPage from './pages/SettingsPage'
 import TasksPage from './pages/TasksPage'
-import type { SectionName, Task, TaskStatus } from './types'
+import type { AppTheme, SectionName, Task, TaskStatus, WeekStartsOn } from './types'
 
 const getGreeting = () => {
   const hour = new Date().getHours()
@@ -38,6 +39,12 @@ const getGreeting = () => {
 function App() {
   const [activeSection, setActiveSection] = useState<SectionName>('Dashboard')
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [theme, setTheme] = useState<AppTheme>(() =>
+    localStorage.getItem('life-tracker-theme') === 'dark' ? 'dark' : 'light',
+  )
+  const [weekStartsOn, setWeekStartsOn] = useState<WeekStartsOn>(() =>
+    localStorage.getItem('life-tracker-week-starts-on') === 'sunday' ? 'sunday' : 'monday',
+  )
   const [taskList, setTaskList] = useState<Task[]>(taskSeed)
   const [quickTask, setQuickTask] = useState('')
   const [taskFilter, setTaskFilter] = useState<'all' | 'today' | 'overdue' | 'completed'>('all')
@@ -119,6 +126,16 @@ function App() {
     setSidebarOpen(false)
   }
 
+  const handleThemeChange = (nextTheme: AppTheme) => {
+    localStorage.setItem('life-tracker-theme', nextTheme)
+    setTheme(nextTheme)
+  }
+
+  const handleWeekStartsOnChange = (nextWeekStartsOn: WeekStartsOn) => {
+    localStorage.setItem('life-tracker-week-starts-on', nextWeekStartsOn)
+    setWeekStartsOn(nextWeekStartsOn)
+  }
+
   const renderSection = () => {
     switch (activeSection) {
       case 'Dashboard':
@@ -162,18 +179,33 @@ function App() {
       case 'Clarity Center':
         return <ClarityPage clarityList={claritySeed} />
       case 'Calendar':
-        return <CalendarPage taskList={taskList} onAddTask={handleAddScheduledTask} />
+        return (
+          <CalendarPage
+            taskList={taskList}
+            weekStartsOn={weekStartsOn}
+            onAddTask={handleAddScheduledTask}
+          />
+        )
       case 'Life Overview':
         return <LifeOverviewPage stats={overviewStats} />
       case 'Insights & Reviews':
         return <InsightsPage insightBars={insightsBars} />
+      case 'Settings':
+        return (
+          <SettingsPage
+            theme={theme}
+            weekStartsOn={weekStartsOn}
+            onThemeChange={handleThemeChange}
+            onWeekStartsOnChange={handleWeekStartsOnChange}
+          />
+        )
       default:
         return null
     }
   }
 
   return (
-    <div className="app-shell">
+    <div className="app-shell" data-theme={theme}>
       {sidebarOpen && (
         <button
           type="button"
