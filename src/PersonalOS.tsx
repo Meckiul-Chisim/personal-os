@@ -26,7 +26,7 @@ const nav: { id: Section; label: string; icon: string; group: string }[] = [
   { id: 'Settings', label: 'Settings', icon: '⚙', group: 'System' },
 ]
 
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => { const date = new Date(); return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-') }
 const uid = () => crypto.randomUUID()
 function useStored<T,>(key: string, initial: T) {
   const [value, setValue] = useState<T>(() => {
@@ -131,7 +131,7 @@ export default function PersonalOS() {
     setLearning(current => [{ id: uid(), title: learnTitle.trim(), topic: learnTopic, status: 'To learn', minutes: 0 }, ...current])
     setLearnTitle('')
   }
-  const addNote = (event: FormEvent, kindToSave: Note['kind'] = noteKind) => {
+  const addNote = (event: FormEvent, kindToSave: Note['kind']) => {
     event.preventDefault()
     if (!noteTitle.trim() && !noteBody.trim()) return
     setNotes(current => [{ id: uid(), title: noteTitle.trim() || 'Untitled', body: noteBody.trim(), kind: kindToSave, date: today() }, ...current])
