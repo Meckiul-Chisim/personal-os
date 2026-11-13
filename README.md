@@ -1,32 +1,44 @@
-# React + TypeScript + Vite
+# Personal OS
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+A local-first personal operating system for bringing work, projects, goals, habits, health, learning, finances and reflection into one calm workspace.
 
-Currently, two official plugins are available:
+## Current foundation
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **Overview and My Day** — a live summary of your own records and tasks due today.
+- **Tasks** — capture, categorize, prioritize, search, complete and delete tasks.
+- **Projects** — create work or personal projects and update progress.
+- **Goals** — define outcomes and track progress.
+- **Habits** — create routines and record daily check-ins.
+- **Health & fitness** — log sleep, hydration, movement, mood and notes.
+- **Learning** — maintain a learning roadmap and update learning status.
+- **Finances** — record income and expenses in INR and see your recorded net total.
+- **Journal and Clarity** — save reflections, ideas, decisions and brain dumps.
+- **Settings** — light/dark appearance plus JSON backup export and import.
 
-## React Compiler
+## Run locally
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Requirements: Node.js 20.19+ or 22.12+.
 
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+npm install
+npm run dev
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+Build and preview:
+
+```bash
+npm run build
+npm run preview
+```
+
+## Data and privacy
+
+This first foundation uses browser `localStorage` and starts with empty records rather than fabricated sample activity. Data stays in the current browser profile on the current device. Export a JSON backup regularly. Clearing browser data can remove these records.
+
+## Not connected yet
+
+Cross-device sync, authentication, cloud backup, reminders/notifications, integrations with bank or health services, and native mobile packaging are future work. The current responsive web app can be opened on a phone, but local browser storage does **not** synchronize phone and desktop data.
+
+## Product direction
+
+Personal OS is intended to become a personal command center: a connected view of what matters, what you are building, how you are progressing, and how your life is going. The next architecture milestone is a secure sync layer with explicit backup and conflict handling, followed by a PWA install experience.
