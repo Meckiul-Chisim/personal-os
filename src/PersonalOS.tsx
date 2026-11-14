@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState, type Dispatch, type FormEvent, type ReactNode, type SetStateAction } from 'react'
+import { useEffect, useMemo, useRef, useState, type Dispatch, type FormEvent, type ReactNode, type SetStateAction } from 'react'
+import MobileTabBar from './components/MobileTabBar'
 import './PersonalOS.css'
 
-type Section = 'Overview' | 'Today' | 'Tasks' | 'Projects' | 'Goals' | 'Habits' | 'Health' | 'Learning' | 'Finances' | 'Journal' | 'Clarity' | 'Settings'
+type Section = 'Overview' | 'Today' | 'Calendar' | 'Tasks' | 'Projects' | 'Goals' | 'Habits' | 'Health' | 'Learning' | 'Finances' | 'Journal' | 'Clarity' | 'Settings'
 type Task = { id: string; title: string; area: string; due: string; priority: 'Low' | 'Medium' | 'High'; done: boolean; createdAt: string }
 type Project = { id: string; name: string; area: string; status: 'Active' | 'On hold' | 'Completed'; progress: number; next: string }
 type Goal = { id: string; title: string; area: string; target: string; progress: number }
@@ -10,10 +11,12 @@ type HealthLog = { id: string; date: string; sleep: number; water: number; movem
 type Transaction = { id: string; title: string; amount: number; type: 'Income' | 'Expense'; category: string; date: string }
 type LearningItem = { id: string; title: string; topic: string; status: 'To learn' | 'Learning' | 'Completed'; minutes: number }
 type Note = { id: string; title: string; body: string; kind: 'Journal' | 'Clarity'; date: string }
+type CalendarEvent = { id: string; title: string; date: string; time: string; note: string; color?: string }
 
 const nav: { id: Section; label: string; icon: string; group: string }[] = [
   { id: 'Overview', label: 'Overview', icon: '⌂', group: 'Workspace' },
   { id: 'Today', label: 'My day', icon: '◷', group: 'Workspace' },
+  { id: 'Calendar', label: 'Calendar', icon: '◫', group: 'Workspace' },
   { id: 'Tasks', label: 'Tasks', icon: '☷', group: 'Workspace' },
   { id: 'Projects', label: 'Projects', icon: '▤', group: 'Workspace' },
   { id: 'Goals', label: 'Goals & growth', icon: '◎', group: 'Personal' },
@@ -22,11 +25,22 @@ const nav: { id: Section; label: string; icon: string; group: string }[] = [
   { id: 'Learning', label: 'Learning', icon: '▱', group: 'Personal' },
   { id: 'Finances', label: 'Finances', icon: '₹', group: 'Personal' },
   { id: 'Journal', label: 'Journal', icon: '≡', group: 'Personal' },
-  { id: 'Clarity', label: 'Clarity space', icon: '✳', group: 'Personal' },
   { id: 'Settings', label: 'Settings', icon: '⚙', group: 'System' },
 ]
 
 const today = () => { const date = new Date(); return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-') }
+const dateKey = (date: Date) => [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-')
+const eventTextColor = (color: string) => {
+  const hex = color.replace('#', '')
+  if (!/^[\da-f]{6}$/i.test(hex)) return '#ffffff'
+
+  const luminanceChannel = (index: number) => {
+    const channel = parseInt(hex.slice(index, index + 2), 16) / 255
+    return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4
+  }
+  const luminance = 0.2126 * luminanceChannel(0) + 0.7152 * luminanceChannel(2) + 0.0722 * luminanceChannel(4)
+  return luminance > 0.179 ? '#20251f' : '#ffffff'
+}
 const uid = () => crypto.randomUUID()
 function useStored<T,>(key: string, initial: T) {
   const [value, setValue] = useState<T>(() => {
@@ -58,6 +72,7 @@ export default function PersonalOS() {
   const [transactions, setTransactions] = useStored<Transaction[]>('transactions', [])
   const [learning, setLearning] = useStored<LearningItem[]>('learning', [])
   const [notes, setNotes] = useStored<Note[]>('notes', [])
+  const [calendarEvents, setCalendarEvents] = useStored<CalendarEvent[]>('calendar-events', [])
   const [taskTitle, setTaskTitle] = useState('')
   const [taskArea, setTaskArea] = useState('Personal')
   const [taskDue, setTaskDue] = useState(today())
@@ -75,6 +90,17 @@ export default function PersonalOS() {
   const [moneyAmount, setMoneyAmount] = useState('')
   const [moneyType, setMoneyType] = useState<Transaction['type']>('Expense')
   const [moneyCategory, setMoneyCategory] = useState('General')
+  const [calendarTitle, setCalendarTitle] = useState('')
+  const [selectedCalendarDate, setSelectedCalendarDate] = useState(today())
+  const [visibleCalendarMonth, setVisibleCalendarMonth] = useState(() => {
+    const date = new Date()
+    return new Date(date.getFullYear(), date.getMonth(), 1)
+  })
+  const [calendarTime, setCalendarTime] = useState('09:00')
+  const [calendarColor, setCalendarColor] = useState('#4e735b')
+  const [calendarNote, setCalendarNote] = useState('')
+  const [editingCalendarEventId, setEditingCalendarEventId] = useState<string | null>(null)
+  const calendarFormRef = useRef<HTMLFormElement>(null)
   const [learnTitle, setLearnTitle] = useState('')
   const [learnTopic, setLearnTopic] = useState('Technology')
   const [noteTitle, setNoteTitle] = useState('')
@@ -87,6 +113,27 @@ export default function PersonalOS() {
   const expenses = transactions.filter(t => t.type === 'Expense').reduce((sum, t) => sum + t.amount, 0)
   const todayTasks = tasks.filter(t => !t.done && t.due <= today())
   const filteredTasks = useMemo(() => tasks.filter(t => (t.title + t.area).toLowerCase().includes(search.toLowerCase())), [tasks, search])
+  const calendarDates = useMemo(() => {
+    const firstOfMonth = new Date(visibleCalendarMonth.getFullYear(), visibleCalendarMonth.getMonth(), 1)
+    const weekdayOffset = firstOfMonth.getDay()
+
+    return Array.from({ length: 42 }, (_, index) =>
+      new Date(visibleCalendarMonth.getFullYear(), visibleCalendarMonth.getMonth(), index - weekdayOffset + 1),
+    )
+  }, [visibleCalendarMonth])
+  const selectedDayEvents = calendarEvents
+    .filter(event => event.date === selectedCalendarDate)
+    .sort((first, second) => first.time.localeCompare(second.time))
+  const eventsByDate = calendarEvents.reduce<Record<string, CalendarEvent[]>>((events, event) => {
+    events[event.date] = [...(events[event.date] ?? []), event]
+    return events
+  }, {})
+
+  const selectCalendarDate = (date: string) => {
+    setSelectedCalendarDate(date)
+    const selected = new Date(`${date}T00:00:00`)
+    setVisibleCalendarMonth(new Date(selected.getFullYear(), selected.getMonth(), 1))
+  }
 
   const addTask = (event: FormEvent) => {
     event.preventDefault()
@@ -138,9 +185,53 @@ export default function PersonalOS() {
     setNoteTitle('')
     setNoteBody('')
   }
+  const addCalendarEntry = (event: FormEvent) => {
+    event.preventDefault()
+    const trimmedTitle = calendarTitle.trim()
+    if (!trimmedTitle) return
+
+    const nextEvent: CalendarEvent = {
+      id: editingCalendarEventId ?? uid(),
+      title: trimmedTitle,
+      date: selectedCalendarDate,
+      time: calendarTime || '09:00',
+      note: calendarNote.trim(),
+      color: calendarColor,
+    }
+
+    setCalendarEvents(current => (editingCalendarEventId
+      ? current.map(calendarEvent => calendarEvent.id === editingCalendarEventId ? nextEvent : calendarEvent)
+      : [...current, nextEvent]).sort((first, second) => {
+      const firstValue = new Date(`${first.date}T${first.time}`).getTime()
+      const secondValue = new Date(`${second.date}T${second.time}`).getTime()
+      return firstValue - secondValue
+    }))
+
+    setEditingCalendarEventId(null)
+    setCalendarTitle('')
+    setCalendarNote('')
+    setCalendarTime('09:00')
+    setCalendarColor('#4e735b')
+  }
+  const editCalendarEvent = (calendarEvent: CalendarEvent) => {
+    setEditingCalendarEventId(calendarEvent.id)
+    setCalendarTitle(calendarEvent.title)
+    selectCalendarDate(calendarEvent.date)
+    setCalendarTime(calendarEvent.time)
+    setCalendarColor(calendarEvent.color || '#4e735b')
+    setCalendarNote(calendarEvent.note)
+    calendarFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+  }
+  const cancelCalendarEventEdit = () => {
+    setEditingCalendarEventId(null)
+    setCalendarTitle('')
+    setCalendarNote('')
+    setCalendarTime('09:00')
+    setCalendarColor('#4e735b')
+  }
   const toggleHabit = (habit: Habit) => setHabits(current => current.map(h => h.id === habit.id ? { ...h, doneDates: h.doneDates.includes(today()) ? h.doneDates.filter(d => d !== today()) : [...h.doneDates, today()] } : h))
   const exportData = () => {
-    const payload = { exportedAt: new Date().toISOString(), tasks, projects, goals, habits, health, transactions, learning, notes, theme }
+    const payload = { exportedAt: new Date().toISOString(), tasks, projects, goals, habits, health, transactions, learning, notes, calendarEvents, theme }
     const url = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }))
     const link = document.createElement('a')
     link.href = url; link.download = 'personal-os-backup.json'; link.click(); URL.revokeObjectURL(url)
@@ -158,6 +249,7 @@ export default function PersonalOS() {
       if (Array.isArray(data.transactions)) setTransactions(data.transactions)
       if (Array.isArray(data.learning)) setLearning(data.learning)
       if (Array.isArray(data.notes)) setNotes(data.notes)
+      if (Array.isArray(data.calendarEvents)) setCalendarEvents(data.calendarEvents)
       window.alert('Your Personal OS backup has been restored.')
     } catch { window.alert('This backup file could not be read.') }
   }
@@ -192,6 +284,74 @@ export default function PersonalOS() {
       <Panel title="Life areas"><div className="po-area-grid">{[{name:'Work & business',desc:'Projects, execution and delivery',count:projects.length,section:'Projects' as Section},{name:'Health & fitness',desc:'Check-ins and physical wellbeing',count:health.length,section:'Health' as Section},{name:'Learning',desc:'Skills and deliberate practice',count:learning.length,section:'Learning' as Section},{name:'Money',desc:'Income, spending and awareness',count:transactions.length,section:'Finances' as Section}].map(area => <button className="po-area-card" key={area.name} onClick={() => setSection(area.section)}><strong>{area.name}</strong><span>{area.desc}</span><small>{area.count} records <b>↗</b></small></button>)}</div></Panel>
       <Panel title="Recent notes" action={<button className="po-text-btn" onClick={() => setSection('Journal')}>Open journal →</button>}>{notes.length ? <div className="po-note-list">{notes.slice(0,3).map(note => <article key={note.id}><span>{note.kind} · {note.date}</span><strong>{note.title}</strong><p>{note.body}</p></article>)}</div> : <Empty title="Give your thoughts a home" detail="Capture an idea, reflection or decision in your journal or clarity space." />}</Panel>
     </div>
+  } else if (section === 'Calendar') {
+    page = <div className="po-calendar-layout">
+      <Panel
+        title={visibleCalendarMonth.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
+        className="po-calendar-panel"
+        action={<div className="po-calendar-controls">
+          <button type="button" className="po-calendar-control" aria-label="Previous month" onClick={() => {
+            const previousMonth = new Date(visibleCalendarMonth.getFullYear(), visibleCalendarMonth.getMonth() - 1, 1)
+            setVisibleCalendarMonth(previousMonth)
+            setSelectedCalendarDate(dateKey(previousMonth))
+          }}>‹</button>
+          <button type="button" className="po-calendar-today" onClick={() => selectCalendarDate(today())}>Today</button>
+          <button type="button" className="po-calendar-control" aria-label="Next month" onClick={() => {
+            const nextMonth = new Date(visibleCalendarMonth.getFullYear(), visibleCalendarMonth.getMonth() + 1, 1)
+            setVisibleCalendarMonth(nextMonth)
+            setSelectedCalendarDate(dateKey(nextMonth))
+          }}>›</button>
+        </div>}
+      >
+        <div className="po-calendar-grid">
+          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => <div className="po-calendar-weekday" key={day}>{day}</div>)}
+          {calendarDates.map(date => {
+            const key = dateKey(date)
+            const dayEvents = eventsByDate[key] ?? []
+            const isCurrentMonth = date.getMonth() === visibleCalendarMonth.getMonth()
+            const isSelected = key === selectedCalendarDate
+
+            return <button
+              type="button"
+              key={key}
+              className={`po-calendar-day${isCurrentMonth ? '' : ' outside'}${isSelected ? ' selected' : ''}${key === today() ? ' is-today' : ''}`}
+              aria-pressed={isSelected}
+              aria-label={`${date.toLocaleDateString(undefined, { dateStyle: 'full' })}${dayEvents.length ? `, ${dayEvents.length} event${dayEvents.length === 1 ? '' : 's'}` : ''}`}
+              onClick={() => selectCalendarDate(key)}
+            >
+              <span className="po-calendar-day-number">{date.getDate()}</span>
+              <span className="po-calendar-events">
+                {dayEvents.slice(0, 2).map(calendarEvent => {
+                  const color = calendarEvent.color || '#4e735b'
+                  return <span className="po-calendar-event-chip" key={calendarEvent.id} style={{ backgroundColor: color, color: eventTextColor(color) }}>{calendarEvent.title}</span>
+                })}
+                {dayEvents.length > 2 && <span className="po-calendar-more">+{dayEvents.length - 2} more</span>}
+              </span>
+              {dayEvents.length > 0 && <span className="po-calendar-event-dot" style={{ backgroundColor: dayEvents[0]?.color || '#4e735b' }} aria-hidden="true" />}
+            </button>
+          })}
+        </div>
+      </Panel>
+
+      <aside className="po-calendar-side">
+        <Panel title={editingCalendarEventId ? 'Edit event' : 'Add an event'}>
+          <form ref={calendarFormRef} className="po-calendar-form" onSubmit={addCalendarEntry}>
+            <Field label="Event name"><input value={calendarTitle} onChange={e => setCalendarTitle(e.target.value)} placeholder="e.g. Team check-in" required /></Field>
+            <Field label="Date"><input type="date" value={selectedCalendarDate} onChange={e => e.target.value && selectCalendarDate(e.target.value)} required /></Field>
+            <Field label="Time"><input type="time" value={calendarTime} onChange={e => setCalendarTime(e.target.value)} required /></Field>
+            <Field label="Event color"><input type="color" value={calendarColor} onChange={e => setCalendarColor(e.target.value)} /></Field>
+            <Field label="Notes"><input value={calendarNote} onChange={e => setCalendarNote(e.target.value)} placeholder="Optional location or details" /></Field>
+            <div className="po-calendar-form-actions">
+              {editingCalendarEventId && <button className="po-secondary" type="button" onClick={cancelCalendarEventEdit}>Cancel</button>}
+              <button className="po-primary" type="submit">{editingCalendarEventId ? 'Save changes' : '＋ Add event'}</button>
+            </div>
+          </form>
+        </Panel>
+        <Panel title={new Date(`${selectedCalendarDate}T00:00:00`).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })} action={<span className="po-muted">{selectedDayEvents.length} events</span>}>
+          {selectedDayEvents.length ? <div className="po-list">{selectedDayEvents.map(calendarEvent => <div className="po-list-row" key={calendarEvent.id}><time className="po-calendar-event-time">{calendarEvent.time}</time><div className="po-row-main"><strong>{calendarEvent.title}</strong>{calendarEvent.note && <small>{calendarEvent.note}</small>}</div><button type="button" className="po-icon-btn" aria-label={`Edit ${calendarEvent.title}`} onClick={() => editCalendarEvent(calendarEvent)}>✎</button><button type="button" className="po-icon-btn" aria-label={`Delete ${calendarEvent.title}`} onClick={() => { remove(setCalendarEvents, calendarEvent.id); if (editingCalendarEventId === calendarEvent.id) cancelCalendarEventEdit() }}>×</button></div>)}</div> : <p className="po-calendar-empty">Nothing planned for this day. Add an event to get started.</p>}
+        </Panel>
+      </aside>
+    </div>
   } else if (section === 'Tasks') {
     page = <><Panel title="Capture a task">{taskForm}</Panel><Panel title="Your task list" action={<span className="po-muted">{tasks.length} total</span>}><div className="po-search"><input placeholder="Search tasks or areas…" value={search} onChange={e => setSearch(e.target.value)} /></div>{renderTasks(filteredTasks)}</Panel></>
   } else if (section === 'Projects') {
@@ -220,6 +380,11 @@ export default function PersonalOS() {
       <div className="po-sidebar-footer"><span className="po-status-dot" /> Local workspace <small>Private on this device</small></div>
     </aside>
     {mobileNav && <button className="po-backdrop" aria-label="Close menu" onClick={()=>setMobileNav(false)} />}
-    <main className="po-main"><header className="po-topbar"><button className="po-menu" onClick={()=>setMobileNav(true)} aria-label="Open menu">☰</button><div><span className="po-breadcrumb">PERSONAL OS / {section.toUpperCase()}</span><h1>{title}</h1></div><div className="po-top-actions"><span className="po-today">{new Date().toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})}</span><button className="po-primary po-new-task" onClick={()=>setSection('Tasks')}>＋ New task</button></div></header><div className="po-content">{page}</div><footer className="po-footer">Personal OS <span>·</span> Your life is a work in progress.</footer></main>
+    <main className="po-main">
+      <header className="po-topbar"><button className="po-menu" onClick={()=>setMobileNav(true)} aria-label="Open menu">☰</button><div><span className="po-breadcrumb">PERSONAL OS / {section.toUpperCase()}</span><h1>{title}</h1></div><div className="po-top-actions"><span className="po-today">{new Date().toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})}</span><button className="po-primary po-new-task" onClick={()=>setSection('Tasks')}>＋ New task</button></div></header>
+      <div className="po-content">{page}</div>
+      <footer className="po-footer">Personal OS <span>·</span> Your life is a work in progress.</footer>
+      <MobileTabBar items={nav} activeItem={section} onSelect={(next) => setSection(next as Section)} />
+    </main>
   </div>
 }

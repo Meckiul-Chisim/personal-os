@@ -1,80 +1,91 @@
 import { useState } from 'react'
-import type { NavSection, SectionName } from '../types'
 
-type MobileTabBarProps = {
-  sections: NavSection[]
-  activeSection: SectionName
-  onSelect: (section: SectionName) => void
+type MobileNavItem = {
+  id: string
+  label: string
+  icon: string
 }
 
-const primarySections: SectionName[] = ['Dashboard', 'My Day', 'Tasks', 'Calendar']
+type MobileTabBarProps = {
+  items: MobileNavItem[]
+  activeItem: string
+  onSelect: (section: string) => void
+}
 
-export default function MobileTabBar({ sections, activeSection, onSelect }: MobileTabBarProps) {
+const primaryItems = ['Overview', 'Today', 'Tasks', 'Calendar']
+
+export default function MobileTabBar({ items, activeItem, onSelect }: MobileTabBarProps) {
   const [moreOpen, setMoreOpen] = useState(false)
-  const primaryItems = sections.filter((section) => primarySections.includes(section.id))
-  const moreItems = sections.filter((section) => !primarySections.includes(section.id))
-  const moreIsActive = moreItems.some((section) => section.id === activeSection)
 
-  const selectSection = (section: SectionName) => {
+  const filteredItems = items.filter((item) => item.id && item.label)
+  const primary = filteredItems.filter((item) => primaryItems.includes(item.id))
+  const more = filteredItems.filter((item) => !primaryItems.includes(item.id))
+  const moreIsActive = more.some((item) => item.id === activeItem)
+
+  const selectSection = (section: string) => {
     onSelect(section)
     setMoreOpen(false)
   }
 
   return (
-    <>
-      <nav className="mobile-tabbar" aria-label="Primary navigation">
-        {primaryItems.map((section) => (
+    <div className="fixed inset-x-4 bottom-4 z-40 md:hidden">
+      <nav
+        className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white/90 p-2 shadow-[0_16px_40px_rgba(15,23,42,0.12)] backdrop-blur"
+        aria-label="Primary navigation"
+      >
+        {primary.map((item) => (
           <button
+            key={item.id}
             type="button"
-            key={section.id}
-            className={activeSection === section.id ? 'mobile-tab active' : 'mobile-tab'}
-            aria-current={activeSection === section.id ? 'page' : undefined}
-            onClick={() => selectSection(section.id)}
+            className={`flex flex-1 flex-col items-center justify-center rounded-xl px-2 py-2 text-[10px] font-semibold transition ${activeItem === item.id ? 'bg-emerald-100 text-emerald-900' : 'text-slate-600 hover:bg-slate-100'}`}
+            aria-current={activeItem === item.id ? 'page' : undefined}
+            onClick={() => selectSection(item.id)}
           >
-            <span aria-hidden="true">{section.icon}</span>
-            <small>{section.id}</small>
+            <span aria-hidden="true" className="mb-1 text-base">{item.icon}</span>
+            {item.label}
           </button>
         ))}
         <button
           type="button"
-          className={moreIsActive || moreOpen ? 'mobile-tab active' : 'mobile-tab'}
+          className={`flex min-w-[68px] flex-col items-center justify-center rounded-xl px-2 py-2 text-[10px] font-semibold transition ${moreIsActive || moreOpen ? 'bg-emerald-100 text-emerald-900' : 'text-slate-600 hover:bg-slate-100'}`}
           aria-expanded={moreOpen}
           onClick={() => setMoreOpen((open) => !open)}
         >
-          <span aria-hidden="true">···</span>
-          <small>More</small>
+          <span aria-hidden="true" className="mb-1 text-base">···</span>
+          More
         </button>
       </nav>
 
       {moreOpen && (
-        <div className="mobile-more-overlay">
-          <button
-            type="button"
-            className="mobile-more-backdrop"
-            aria-label="Close more menu"
-            onClick={() => setMoreOpen(false)}
-          />
-          <section className="mobile-more-sheet" role="dialog" aria-modal="true" aria-labelledby="mobile-more-title">
-            <div className="mobile-more-heading">
-              <h2 id="mobile-more-title">More</h2>
-              <button type="button" aria-label="Close more menu" onClick={() => setMoreOpen(false)}>×</button>
+        <div className="pointer-events-none absolute inset-x-0 bottom-[calc(100%+0.75rem)]">
+          <div className="pointer-events-auto mx-auto w-full max-w-sm overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.18)]">
+            <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+              <h2 className="text-sm font-semibold text-slate-800">More</h2>
+              <button
+                type="button"
+                className="rounded-lg px-2 py-1 text-lg leading-none text-slate-500 hover:bg-slate-100"
+                aria-label="Close more menu"
+                onClick={() => setMoreOpen(false)}
+              >
+                ×
+              </button>
             </div>
-            <nav aria-label="More sections">
-              {moreItems.map((section) => (
+            <nav className="flex flex-col p-2" aria-label="More sections">
+              {more.map((item) => (
                 <button
+                  key={item.id}
                   type="button"
-                  key={section.id}
-                  className={activeSection === section.id ? 'mobile-more-item active' : 'mobile-more-item'}
-                  onClick={() => selectSection(section.id)}
+                  className={`flex items-center gap-3 rounded-xl px-3 py-2 text-left text-sm transition ${activeItem === item.id ? 'bg-emerald-100 text-emerald-900' : 'text-slate-700 hover:bg-slate-100'}`}
+                  onClick={() => selectSection(item.id)}
                 >
-                  <span aria-hidden="true">{section.icon}</span>
-                  {section.id}
+                  <span aria-hidden="true" className="text-base">{item.icon}</span>
+                  {item.label}
                 </button>
               ))}
             </nav>
-          </section>
+          </div>
         </div>
       )}
-    </>
+    </div>
   )
 }
