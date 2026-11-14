@@ -41,6 +41,39 @@ const eventTextColor = (color: string) => {
   const luminance = 0.2126 * luminanceChannel(0) + 0.7152 * luminanceChannel(2) + 0.0722 * luminanceChannel(4)
   return luminance > 0.179 ? '#20251f' : '#ffffff'
 }
+const apiError = async (response: Response) => {
+  let message = `Push service request failed (${response.status}).`
+  try {
+    const body: { error?: unknown } = await response.json()
+    if (typeof body.error === 'string') message = body.error
+  } catch {
+    message = `Could not read the push service response (${response.status}).`
+  }
+  return new Error(message)
+}
+const decodeApplicationServerKey = (key: string) => {
+  const padding = '='.repeat((4 - key.length % 4) % 4)
+  const base64 = (key + padding).replace(/-/g, '+').replace(/_/g, '/')
+  return Uint8Array.from(window.atob(base64), character => character.charCodeAt(0))
+}
+const syncPushCalendarEvents = async (token: string, events: CalendarEvent[]) => {
+  const response = await fetch('/api/calendar-events', {
+    method: 'PUT',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      events: events.map(event => ({
+        id: event.id,
+        title: event.title,
+        note: event.note,
+        eventAt: new Date(`${event.date}T${event.time}`).getTime(),
+      })),
+    }),
+  })
+  if (!response.ok) throw await apiError(response)
+}
 const uid = () => crypto.randomUUID()
 function useStored<T,>(key: string, initial: T) {
   const [value, setValue] = useState<T>(() => {
@@ -62,7 +95,6 @@ function Panel({ title, action, children, className = '' }: { title: string; act
 
 export default function PersonalOS() {
   const [section, setSection] = useState<Section>('Overview')
-  const [mobileNav, setMobileNav] = useState(false)
   const [theme, setTheme] = useStored<'light' | 'dark'>('theme', 'light')
   const [tasks, setTasks] = useStored<Task[]>('tasks', [])
   const [projects, setProjects] = useStored<Project[]>('projects', [])
@@ -73,6 +105,7 @@ export default function PersonalOS() {
   const [learning, setLearning] = useStored<LearningItem[]>('learning', [])
   const [notes, setNotes] = useStored<Note[]>('notes', [])
   const [calendarEvents, setCalendarEvents] = useStored<CalendarEvent[]>('calendar-events', [])
+  const [pushSessionToken, setPushSessionToken] = useStored<string>('push-session', '')
   const [taskTitle, setTaskTitle] = useState('')
   const [taskArea, setTaskArea] = useState('Personal')
   const [taskDue, setTaskDue] = useState(today())
@@ -101,6 +134,10 @@ export default function PersonalOS() {
   const [calendarNote, setCalendarNote] = useState('')
   const [editingCalendarEventId, setEditingCalendarEventId] = useState<string | null>(null)
   const calendarFormRef = useRef<HTMLFormElement>(null)
+  const pushSyncQueueRef = useRef<Promise<void>>(Promise.resolve())
+  const [pushPassword, setPushPassword] = useState('')
+  const [pushStatus, setPushStatus] = useState<'off' | 'checking' | 'on' | 'error'>(pushSessionToken ? 'checking' : 'off')
+  const [pushError, setPushError] = useState('')
   const [learnTitle, setLearnTitle] = useState('')
   const [learnTopic, setLearnTopic] = useState('Technology')
   const [noteTitle, setNoteTitle] = useState('')
@@ -133,6 +170,139 @@ export default function PersonalOS() {
     setSelectedCalendarDate(date)
     const selected = new Date(`${date}T00:00:00`)
     setVisibleCalendarMonth(new Date(selected.getFullYear(), selected.getMonth(), 1))
+  }
+
+  const queuePushCalendarSync = (token: string, events: CalendarEvent[]) => {
+    const queuedSync = pushSyncQueueRef.current
+      .catch(() => undefined)
+      .then(() => syncPushCalendarEvents(token, events))
+    pushSyncQueueRef.current = queuedSync
+    return queuedSync
+  }
+
+  useEffect(() => {
+    if (!pushSessionToken) return
+    let cancelled = false
+    queuePushCalendarSync(pushSessionToken, calendarEvents)
+      .then(() => {
+        if (cancelled) return
+        setPushStatus('on')
+        setPushError('')
+      })
+      .catch(error => {
+        if (cancelled) return
+        const message = error instanceof Error ? error.message : 'Could not sync calendar reminders.'
+        setPushStatus('error')
+        setPushError(message)
+        if (message.includes('(401)')) setPushSessionToken('')
+      })
+    return () => { cancelled = true }
+  }, [calendarEvents, pushSessionToken, setPushSessionToken])
+
+  const enablePushNotifications = async () => {
+    setPushError('')
+    setPushStatus('checking')
+
+    try {
+      if (!window.isSecureContext) {
+        throw new Error('Push notifications require HTTPS, or localhost for local development.')
+      }
+      if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
+        throw new Error('This browser does not support web push notifications.')
+      }
+      if (!pushPassword.trim()) {
+        throw new Error('Enter the push access password configured on the server.')
+      }
+
+      let permission = Notification.permission
+      if (permission === 'default') permission = await Notification.requestPermission()
+      if (permission !== 'granted') {
+        throw new Error('Allow notifications in your browser settings to receive event reminders.')
+      }
+
+      const configResponse = await fetch('/api/push/config')
+      if (!configResponse.ok) throw await apiError(configResponse)
+      const config: { configured: boolean; missing: string[]; publicKey: string | null } = await configResponse.json()
+      if (!config.configured || !config.publicKey) {
+        throw new Error(`The push server is not configured. Missing: ${config.missing.join(', ') || 'VAPID keys'}.`)
+      }
+
+      const loginResponse = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: pushPassword }),
+      })
+      if (!loginResponse.ok) throw await apiError(loginResponse)
+      const login: { token: string } = await loginResponse.json()
+
+      await navigator.serviceWorker.register('/sw.js')
+      const registration = await navigator.serviceWorker.ready
+      let subscription = await registration.pushManager.getSubscription()
+      if (!subscription) {
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: decodeApplicationServerKey(config.publicKey),
+        })
+      }
+
+      const subscriptionResponse = await fetch('/api/push/subscription', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${login.token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ subscription: subscription.toJSON() }),
+      })
+      if (!subscriptionResponse.ok) throw await apiError(subscriptionResponse)
+
+      await queuePushCalendarSync(login.token, calendarEvents)
+      setPushSessionToken(login.token)
+      setPushPassword('')
+      setPushStatus('on')
+    } catch (error) {
+      setPushStatus('error')
+      setPushError(error instanceof Error ? error.message : 'Could not enable push notifications.')
+    }
+  }
+
+  const disablePushNotifications = async () => {
+    setPushError('')
+    setPushStatus('checking')
+
+    try {
+      const registration = await navigator.serviceWorker.getRegistration('/')
+      const subscription = await registration?.pushManager.getSubscription()
+      if (subscription) {
+        const response = await fetch('/api/push/subscription', {
+          method: 'DELETE',
+          headers: {
+            Authorization: `Bearer ${pushSessionToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ endpoint: subscription.endpoint }),
+        })
+        if (!response.ok) throw await apiError(response)
+        await subscription.unsubscribe()
+      }
+
+      setPushSessionToken('')
+      setPushStatus('off')
+    } catch (error) {
+      setPushStatus('error')
+      setPushError(error instanceof Error ? error.message : 'Could not turn off push notifications.')
+    }
+  }
+
+  const retryPushSync = async () => {
+    setPushError('')
+    setPushStatus('checking')
+    try {
+      await queuePushCalendarSync(pushSessionToken, calendarEvents)
+      setPushStatus('on')
+    } catch (error) {
+      setPushStatus('error')
+      setPushError(error instanceof Error ? error.message : 'Could not sync calendar reminders.')
+    }
   }
 
   const addTask = (event: FormEvent) => {
@@ -371,17 +541,65 @@ export default function PersonalOS() {
     const entries = notes.filter(n => n.kind === kind)
     page = <><Panel title={section === 'Journal' ? 'Write a journal entry' : 'Clear your mind'}><form className="po-note-form" onSubmit={event => addNote(event, kind)}><Field label="Title"><input value={noteTitle} onChange={e => setNoteTitle(e.target.value)} placeholder={section === 'Journal'?'A moment worth remembering':'What is on your mind?'} /></Field><Field label="Your thoughts"><textarea rows={5} value={noteBody} onChange={e => setNoteBody(e.target.value)} placeholder={section === 'Journal'?'Reflect on your day…':'Capture loose thoughts, decisions, blockers or ideas…'} /></Field><div className="po-form-end"><span className="po-muted">Saved on this device</span><button className="po-primary" type="submit">Save entry</button></div></form></Panel><Panel title={section === 'Journal' ? 'Your journal' : 'Clarity archive'}>{entries.length ? <div className="po-note-list">{entries.map(n => <article key={n.id}><div className="po-note-top"><span>{n.date}</span><button className="po-icon-btn" onClick={() => remove(setNotes,n.id)}>×</button></div><strong>{n.title}</strong><p>{n.body}</p></article>)}</div> : <Empty title={section === 'Journal'?'Your story starts with one entry':'Make space to think'} detail="Your writing is private to this browser profile and is not sent to a server." />}</Panel></>
   } else {
-    page = <><Panel title="Your data stays yours"><p className="po-settings-copy">Personal OS currently stores your records locally in this browser on this device. No account, paid API or cloud database is required for this first version. Use a backup when moving devices or clearing browser data.</p><div className="po-settings-actions"><button className="po-primary" onClick={exportData}>Export full backup (.json)</button><label className="po-secondary">Import backup<input type="file" accept="application/json,.json" onChange={e => importData(e.target.files?.[0])} /></label></div></Panel><Panel title="Appearance"><div className="po-setting-row"><div><strong>Theme</strong><small>Choose a comfortable workspace appearance.</small></div><div className="po-segment"><button className={theme==='light'?'active':''} onClick={() => setTheme('light')}>Light</button><button className={theme==='dark'?'active':''} onClick={() => setTheme('dark')}>Dark</button></div></div></Panel><Panel title="About this build"><p className="po-settings-copy">This is the local-first foundation. Tasks, projects, goals, habits, health check-ins, learning records, transactions and notes are saved in browser storage. Cross-device sync, sign-in, reminders and native mobile packaging are not connected yet.</p></Panel></>
+    const pushStatusLabel = pushStatus === 'checking'
+      ? 'Connecting and syncing reminders…'
+      : pushStatus === 'on'
+        ? 'Push reminders are enabled'
+        : pushStatus === 'error'
+          ? 'Push reminders need attention'
+          : 'Push reminders are off'
+
+    page = <>
+      <Panel title="Your data stays yours">
+        <p className="po-settings-copy">Personal OS stores your records locally in this browser on this device. Export a JSON backup regularly. Calendar events are sent to the push service only when you enable event reminders.</p>
+        <div className="po-settings-actions">
+          <button className="po-primary" onClick={exportData}>Export full backup (.json)</button>
+          <label className="po-secondary">Import backup<input type="file" accept="application/json,.json" onChange={e => importData(e.target.files?.[0])} /></label>
+        </div>
+      </Panel>
+      <Panel title="Calendar push reminders">
+        <div className={`po-push-status${pushStatus === 'error' ? ' has-error' : ''}`} role="status" aria-live="polite">
+          <span className="po-status-dot" />
+          <strong>{pushStatusLabel}</strong>
+        </div>
+        <p className="po-settings-copy">Receive a browser notification 5 minutes before each upcoming calendar event. This sends event titles, times and notes to your configured push server. Notifications require browser permission, HTTPS, and an always-on server.</p>
+        {pushSessionToken ? (
+          <div className="po-settings-actions">
+            <button className="po-secondary" type="button" disabled={pushStatus === 'checking'} onClick={retryPushSync}>Sync reminders</button>
+            <button className="po-secondary" type="button" disabled={pushStatus === 'checking'} onClick={disablePushNotifications}>Turn off on this device</button>
+          </div>
+        ) : (
+          <form className="po-push-form" onSubmit={event => { event.preventDefault(); void enablePushNotifications() }}>
+            <Field label="Push access password">
+              <input type="password" autoComplete="current-password" value={pushPassword} onChange={event => setPushPassword(event.target.value)} placeholder="Set on the push server" />
+            </Field>
+            <button className="po-primary" type="submit" disabled={pushStatus === 'checking'}>Enable push reminders</button>
+          </form>
+        )}
+        {pushError && <p className="po-push-error" role="alert">{pushError}</p>}
+      </Panel>
+      <Panel title="Appearance">
+        <div className="po-setting-row">
+          <div><strong>Theme</strong><small>Choose a comfortable workspace appearance.</small></div>
+          <div className="po-segment">
+            <button className={theme==='light'?'active':''} onClick={() => setTheme('light')}>Light</button>
+            <button className={theme==='dark'?'active':''} onClick={() => setTheme('dark')}>Dark</button>
+          </div>
+        </div>
+      </Panel>
+      <Panel title="About this build">
+        <p className="po-settings-copy">Tasks, projects, goals, habits, health check-ins, learning records, transactions, calendar events and notes are stored in browser storage. Push reminders use the optional private server configured for this app.</p>
+      </Panel>
+    </>
   }
 
   return <div className={'personal-os'+(theme==='dark'?' po-dark':'')}>
-    <aside className={'po-sidebar'+(mobileNav?' open':'')}><div className="po-brand"><div className="po-brand-mark">P</div><div><strong>Personal OS</strong><small>Your life, in one place</small></div><button className="po-close-nav" onClick={() => setMobileNav(false)}>×</button></div>
-      {['Workspace','Personal','System'].map(group => <div className="po-nav-group" key={group}><span className="po-nav-label">{group}</span>{nav.filter(item=>item.group===group).map(item=><button key={item.id} className={'po-nav-item'+(section===item.id?' active':'')} onClick={()=>{setSection(item.id);setMobileNav(false)}}><span>{item.icon}</span>{item.label}</button>)}</div>)}
+    <aside className="po-sidebar"><div className="po-brand"><div className="po-brand-mark">P</div><div><strong>Personal OS</strong><small>Your life, in one place</small></div></div>
+      {['Workspace','Personal','System'].map(group => <div className="po-nav-group" key={group}><span className="po-nav-label">{group}</span>{nav.filter(item=>item.group===group).map(item=><button key={item.id} className={'po-nav-item'+(section===item.id?' active':'')} onClick={()=>setSection(item.id)}><span>{item.icon}</span>{item.label}</button>)}</div>)}
       <div className="po-sidebar-footer"><span className="po-status-dot" /> Local workspace <small>Private on this device</small></div>
     </aside>
-    {mobileNav && <button className="po-backdrop" aria-label="Close menu" onClick={()=>setMobileNav(false)} />}
     <main className="po-main">
-      <header className="po-topbar"><button className="po-menu" onClick={()=>setMobileNav(true)} aria-label="Open menu">☰</button><div><span className="po-breadcrumb">PERSONAL OS / {section.toUpperCase()}</span><h1>{title}</h1></div><div className="po-top-actions"><span className="po-today">{new Date().toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})}</span><button className="po-primary po-new-task" onClick={()=>setSection('Tasks')}>＋ New task</button></div></header>
+      <header className="po-topbar"><div><span className="po-breadcrumb">PERSONAL OS / {section.toUpperCase()}</span><h1>{title}</h1></div><div className="po-top-actions"><span className="po-today">{new Date().toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})}</span><button className="po-primary po-new-task" onClick={()=>setSection('Tasks')}>＋ New task</button></div></header>
       <div className="po-content">{page}</div>
       <footer className="po-footer">Personal OS <span>·</span> Your life is a work in progress.</footer>
       <MobileTabBar items={nav} activeItem={section} onSelect={(next) => setSection(next as Section)} />

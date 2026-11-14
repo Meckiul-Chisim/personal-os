@@ -68,6 +68,67 @@ body::-webkit-scrollbar,
   }
 }
 
+.po-mobile-tabbar {
+  bottom: max(1rem, env(safe-area-inset-bottom));
+}
+.po-mobile-tabbar-nav {
+  gap: 4px;
+}
+.po-mobile-tab {
+  min-width: 0;
+  line-height: 1.2;
+}
+.po-mobile-more-toggle {
+  min-width: 56px;
+}
+.po-mobile-tab:focus-visible,
+.po-mobile-more-item:focus-visible {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 2px;
+}
+.po-dark .po-mobile-tabbar-nav,
+.po-dark .po-mobile-more-sheet {
+  border-color: var(--line);
+  background-color: color-mix(in srgb, var(--surface) 94%, transparent);
+  color: var(--text);
+}
+.po-dark .po-mobile-tab:not(.is-active),
+.po-dark .po-mobile-more-item:not(.is-active) {
+  color: var(--muted);
+}
+.po-dark .po-mobile-more-heading {
+  border-color: var(--line);
+}
+.po-dark .po-mobile-more-heading h2 {
+  color: var(--text);
+}
+.po-dark .po-mobile-more-heading button {
+  color: var(--muted);
+}
+.po-dark .po-mobile-tab.is-active,
+.po-dark .po-mobile-more-item.is-active {
+  background: var(--accent-soft);
+  color: var(--text);
+}
+@media (max-width: 360px) {
+  .po-mobile-tabbar {
+    right: 10px;
+    left: 10px;
+  }
+  .po-mobile-tabbar-nav {
+    gap: 2px;
+    padding: 6px;
+  }
+  .po-mobile-tab {
+    padding-right: 4px;
+    padding-left: 4px;
+    font-size: 9px;
+  }
+  .po-mobile-more-toggle {
+    min-width: 48px;
+  }
+}
+
 .po-calendar-layout {
   display: grid;
   grid-template-columns: minmax(0, 1.65fr) minmax(260px, .85fr);
@@ -251,6 +312,39 @@ body::-webkit-scrollbar,
   font-size: 11px;
   line-height: 1.6;
 }
+.po-push-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.po-push-status strong {
+  font-size: 12px;
+}
+.po-push-status.has-error .po-status-dot {
+  background: #c65e55;
+}
+.po-push-form {
+  display: grid;
+  max-width: 420px;
+  gap: 12px;
+  margin-top: 16px;
+}
+.po-push-form .po-primary {
+  justify-self: start;
+}
+.po-push-error {
+  margin-top: 12px;
+  color: #b65b53;
+  font-size: 11px;
+  line-height: 1.6;
+}
+.po-settings-actions button:disabled,
+.po-push-form button:disabled {
+  cursor: wait;
+  opacity: .6;
+  transform: none;
+}
 .po-dark .po-calendar-day.outside {
   color: #68736a;
 }
@@ -318,5 +412,24 @@ body::-webkit-scrollbar,
   }
   .po-calendar-side {
     grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 680px) {
+  .po-sidebar,
+  .po-backdrop,
+  .po-close-nav {
+    display: none;
+  }
+  .po-menu,
+  .po-topbar > button {
+    display: none !important;
+  }
+  .po-topbar > div:nth-of-type(1) {
+    flex: 1;
+    min-width: 0;
+  }
+  .po-topbar > div:nth-of-type(2) {
+    flex: 0 0 auto;
   }
 }
