@@ -110,6 +110,29 @@ body::-webkit-scrollbar,
   background: var(--accent-soft);
   color: var(--text);
 }
+.po-list-row.po-learning-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 240px) 28px;
+}
+.po-learning-row select {
+  min-width: 0;
+}
+@media (max-width: 680px) {
+  .po-list-row.po-learning-row {
+    grid-template-columns: minmax(0, 1fr) 28px;
+  }
+  .po-learning-row .po-row-main {
+    grid-column: 1 / -1;
+  }
+  .po-learning-row select {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  .po-learning-row .po-icon-btn {
+    grid-column: 2;
+    grid-row: 2;
+  }
+}
 @media (max-width: 360px) {
   .po-mobile-tabbar {
     right: 10px;
@@ -126,6 +149,167 @@ body::-webkit-scrollbar,
   }
   .po-mobile-more-toggle {
     min-width: 48px;
+  }
+}
+
+.po-auth-screen {
+  display: grid;
+  min-height: 100dvh;
+  place-items: center;
+  padding: 24px 16px;
+  background: #f7f8f6;
+  color: #20251f;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+.po-auth-card {
+  display: grid;
+  width: min(420px, 100%);
+  gap: 16px;
+  padding: 32px;
+  border: 1px solid #e7ebe5;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 18px 55px #2033230d;
+}
+.po-auth-card > .po-brand-mark {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border-radius: 12px;
+  background: #315b42;
+  color: #fff;
+  font-weight: 750;
+  font-size: 18px;
+}
+.po-auth-card h1 {
+  font-size: 23px;
+  font-weight: 680;
+  letter-spacing: -.04em;
+}
+.po-auth-card > p {
+  color: #7a8179;
+  font-size: 12px;
+  line-height: 1.65;
+}
+.po-auth-form {
+  display: grid;
+  gap: 13px;
+}
+.po-auth-form .po-field {
+  gap: 7px;
+}
+.po-auth-form .po-field input {
+  width: 100%;
+  min-height: 42px;
+  padding: 10px 12px;
+  border: 1px solid #e1e6df;
+  border-radius: 8px;
+  background: #fff;
+  color: #20251f;
+  font-size: 13px;
+}
+.po-auth-form .po-primary {
+  width: 100%;
+  min-height: 42px;
+}
+.po-auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #9aa199;
+  font-size: 11px;
+}
+.po-auth-divider::before,
+.po-auth-divider::after {
+  height: 1px;
+  flex: 1;
+  background: #e7ebe5;
+  content: "";
+}
+.po-google-button {
+  display: flex;
+  min-height: 42px;
+  justify-content: center;
+}
+.po-account-details {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+.po-account-details > div {
+  display: grid;
+  gap: 5px;
+  padding: 14px;
+  border: 1px solid #e7ebe5;
+  border-radius: 9px;
+  background: #f7f8f6;
+}
+.po-account-details span {
+  color: #7a8179;
+  font-size: 10px;
+}
+.po-account-details strong {
+  overflow-wrap: anywhere;
+  font-size: 12px;
+}
+.po-dark .po-account-details > div {
+  border-color: var(--line);
+  background: var(--surface-soft);
+}
+.po-dark .po-account-details span {
+  color: var(--muted);
+}
+.po-dark .po-account-details strong {
+  color: var(--text);
+}
+.po-auth-switch {
+  text-align: center;
+}
+.po-auth-switch button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #345b43;
+  font-size: inherit;
+  font-weight: 650;
+  cursor: pointer;
+}
+.po-auth-error {
+  color: #b34842 !important;
+}
+.po-auth-note {
+  color: #7a8179;
+  font-size: 11px;
+  line-height: 1.55;
+  text-align: center;
+}
+.po-auth-actions {
+  display: grid;
+  gap: 9px;
+}
+.po-migration-card {
+  width: min(500px, 100%);
+}
+.po-migration-card strong {
+  color: #20251f;
+}
+.po-auth-card .po-primary:disabled,
+.po-auth-card .po-secondary:disabled {
+  cursor: wait;
+  opacity: .7;
+}
+@media (max-width: 680px) {
+  .po-auth-card {
+    padding: 24px 20px;
+  }
+  .po-account-btn {
+    min-height: 34px;
+    padding: 0 8px;
+    font-size: 10px;
+  }
+  .po-account-details {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -259,11 +443,28 @@ body::-webkit-scrollbar,
 .po-calendar-event-chip {
   font-weight: 750;
 }
+.po-calendar-event-chip.holiday {
+  border: 1px solid #ffffff72;
+}
 .po-calendar-more {
   padding: 1px 5px;
   background: transparent;
   color: var(--muted);
   font-weight: 650;
+}
+.po-calendar-legend {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 10px;
+}
+.po-calendar-legend > span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #b45309;
 }
 .po-calendar-side {
   display: grid;
@@ -305,6 +506,10 @@ body::-webkit-scrollbar,
   color: var(--accent-strong);
   font-size: 10px;
   font-weight: 650;
+}
+.po-calendar-agenda-item {
+  border-left: 3px solid transparent;
+  padding-left: 9px;
 }
 .po-calendar-empty {
   padding: 4px 0;

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type Dispatch, type FormEvent, type ReactNode, type SetStateAction } from 'react'
+import { useEffect, useMemo, useRef, useState, type Dispatch, type FormEvent, type ReactNode, type RefObject, type SetStateAction } from 'react'
 import MobileTabBar from './components/MobileTabBar'
 import './PersonalOS.css'
 
@@ -12,6 +12,22 @@ type Transaction = { id: string; title: string; amount: number; type: 'Income' |
 type LearningItem = { id: string; title: string; topic: string; status: 'To learn' | 'Learning' | 'Completed'; minutes: number }
 type Note = { id: string; title: string; body: string; kind: 'Journal' | 'Clarity'; date: string }
 type CalendarEvent = { id: string; title: string; date: string; time: string; note: string; color?: string }
+type CalendarHoliday = { id: string; title: string; date: string; color: string; kind: 'holiday' }
+type CalendarEntry = (CalendarEvent & { kind: 'event' }) | CalendarHoliday
+export type PersonalOSData = {
+  theme: 'light' | 'dark'
+  tasks: Task[]
+  projects: Project[]
+  goals: Goal[]
+  habits: Habit[]
+  health: HealthLog[]
+  transactions: Transaction[]
+  learning: LearningItem[]
+  notes: Note[]
+  calendarEvents: CalendarEvent[]
+}
+type Account = { id: string; email: string; googleLinked: boolean; passwordLoginEnabled: boolean }
+type SyncState = 'syncing' | 'synced' | 'error' | 'conflict'
 
 const nav: { id: Section; label: string; icon: string; group: string }[] = [
   { id: 'Overview', label: 'Overview', icon: '⌂', group: 'Workspace' },
@@ -30,6 +46,27 @@ const nav: { id: Section; label: string; icon: string; group: string }[] = [
 
 const today = () => { const date = new Date(); return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-') }
 const dateKey = (date: Date) => [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-')
+const indianFestivalDates: Record<number, { title: string; date: string }[]> = {
+  2026: [{ title: 'Holi', date: '2026-03-04' }, { title: 'Diwali', date: '2026-11-08' }],
+  2027: [{ title: 'Holi', date: '2027-03-22' }, { title: 'Diwali', date: '2027-10-29' }],
+  2028: [{ title: 'Holi', date: '2028-03-11' }, { title: 'Diwali', date: '2028-10-17' }],
+  2029: [{ title: 'Holi', date: '2029-03-01' }, { title: 'Diwali', date: '2029-11-05' }],
+  2030: [{ title: 'Holi', date: '2030-03-20' }, { title: 'Diwali', date: '2030-10-26' }],
+}
+const indiaHolidaysForYear = (year: number): CalendarHoliday[] => [
+  { id: `india-republic-day-${year}`, title: 'Republic Day', date: `${year}-01-26`, color: '#b45309', kind: 'holiday' },
+  { id: `india-independence-day-${year}`, title: 'Independence Day', date: `${year}-08-15`, color: '#047857', kind: 'holiday' },
+  { id: `india-gandhi-jayanti-${year}`, title: 'Gandhi Jayanti', date: `${year}-10-02`, color: '#b45309', kind: 'holiday' },
+  { id: `india-christmas-${year}`, title: 'Christmas', date: `${year}-12-25`, color: '#b91c1c', kind: 'holiday' },
+  { id: `india-all-souls-day-${year}`, title: "All soul's day", date: `${year}-11-02`, color: '#bc80ae', kind: 'holiday' },
+  { id: `india-childrens-day-${year}`, title: "Children's day", date: `${year}-11-14`, color: "#6a00cd", kind: 'holiday' },
+  ...(indianFestivalDates[year] ?? []).map(holiday => ({
+    id: `india-${holiday.title.toLowerCase()}-${year}`,
+    ...holiday,
+    color: holiday.title === 'Diwali' ? '#a16207' : '#c2410c',
+    kind: 'holiday' as const,
+  })),
+]
 const eventTextColor = (color: string) => {
   const hex = color.replace('#', '')
   if (!/^[\da-f]{6}$/i.test(hex)) return '#ffffff'
@@ -56,12 +93,13 @@ const decodeApplicationServerKey = (key: string) => {
   const base64 = (key + padding).replace(/-/g, '+').replace(/_/g, '/')
   return Uint8Array.from(window.atob(base64), character => character.charCodeAt(0))
 }
-const syncPushCalendarEvents = async (token: string, events: CalendarEvent[]) => {
+const syncPushCalendarEvents = async (events: CalendarEvent[]) => {
   const response = await fetch('/api/calendar-events', {
     method: 'PUT',
+    credentials: 'same-origin',
     headers: {
-      Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
+      'X-PersonalOS-Request': '1',
     },
     body: JSON.stringify({
       events: events.map(event => ({
@@ -75,12 +113,13 @@ const syncPushCalendarEvents = async (token: string, events: CalendarEvent[]) =>
   if (!response.ok) throw await apiError(response)
 }
 const uid = () => crypto.randomUUID()
-function useStored<T,>(key: string, initial: T) {
+function useStored<T,>(key: string, initial: T, accountId: string) {
+  const storageKey = 'personal-os:' + accountId + ':' + key
   const [value, setValue] = useState<T>(() => {
-    try { const saved = localStorage.getItem('personal-os:' + key); return saved ? JSON.parse(saved) as T : initial }
+    try { const saved = localStorage.getItem(storageKey); return saved ? JSON.parse(saved) as T : initial }
     catch { return initial }
   })
-  useEffect(() => { localStorage.setItem('personal-os:' + key, JSON.stringify(value)) }, [key, value])
+  useEffect(() => { localStorage.setItem(storageKey, JSON.stringify(value)) }, [storageKey, value])
   return [value, setValue] as const
 }
 function Field({ label, children }: { label: string; children: ReactNode }) {
@@ -93,19 +132,30 @@ function Panel({ title, action, children, className = '' }: { title: string; act
   return <section className={'po-panel ' + className}><div className="po-panel-head"><h2>{title}</h2>{action}</div>{children}</section>
 }
 
-export default function PersonalOS() {
+export default function PersonalOS({ account, onSignOut, onSyncData, syncState, syncError, onReloadCloudData, onRetrySync, googleButtonRef, googleConfigured, googleError, onSettingsOpen }: {
+  account: Account
+  onSignOut: (pushEndpoint?: string) => Promise<boolean>
+  onSyncData: (data: PersonalOSData) => Promise<void>
+  syncState: SyncState
+  syncError: string
+  onReloadCloudData: () => Promise<void>
+  onRetrySync: () => Promise<void>
+  googleButtonRef: RefObject<HTMLDivElement | null>
+  googleConfigured: boolean
+  googleError: string
+  onSettingsOpen: () => void
+}) {
   const [section, setSection] = useState<Section>('Overview')
-  const [theme, setTheme] = useStored<'light' | 'dark'>('theme', 'light')
-  const [tasks, setTasks] = useStored<Task[]>('tasks', [])
-  const [projects, setProjects] = useStored<Project[]>('projects', [])
-  const [goals, setGoals] = useStored<Goal[]>('goals', [])
-  const [habits, setHabits] = useStored<Habit[]>('habits', [])
-  const [health, setHealth] = useStored<HealthLog[]>('health', [])
-  const [transactions, setTransactions] = useStored<Transaction[]>('transactions', [])
-  const [learning, setLearning] = useStored<LearningItem[]>('learning', [])
-  const [notes, setNotes] = useStored<Note[]>('notes', [])
-  const [calendarEvents, setCalendarEvents] = useStored<CalendarEvent[]>('calendar-events', [])
-  const [pushSessionToken, setPushSessionToken] = useStored<string>('push-session', '')
+  const [theme, setTheme] = useStored<'light' | 'dark'>('theme', 'light', account.id)
+  const [tasks, setTasks] = useStored<Task[]>('tasks', [], account.id)
+  const [projects, setProjects] = useStored<Project[]>('projects', [], account.id)
+  const [goals, setGoals] = useStored<Goal[]>('goals', [], account.id)
+  const [habits, setHabits] = useStored<Habit[]>('habits', [], account.id)
+  const [health, setHealth] = useStored<HealthLog[]>('health', [], account.id)
+  const [transactions, setTransactions] = useStored<Transaction[]>('transactions', [], account.id)
+  const [learning, setLearning] = useStored<LearningItem[]>('learning', [], account.id)
+  const [notes, setNotes] = useStored<Note[]>('notes', [], account.id)
+  const [calendarEvents, setCalendarEvents] = useStored<CalendarEvent[]>('calendar-events', [], account.id)
   const [taskTitle, setTaskTitle] = useState('')
   const [taskArea, setTaskArea] = useState('Personal')
   const [taskDue, setTaskDue] = useState(today())
@@ -135,8 +185,7 @@ export default function PersonalOS() {
   const [editingCalendarEventId, setEditingCalendarEventId] = useState<string | null>(null)
   const calendarFormRef = useRef<HTMLFormElement>(null)
   const pushSyncQueueRef = useRef<Promise<void>>(Promise.resolve())
-  const [pushPassword, setPushPassword] = useState('')
-  const [pushStatus, setPushStatus] = useState<'off' | 'checking' | 'on' | 'error'>(pushSessionToken ? 'checking' : 'off')
+  const [pushStatus, setPushStatus] = useState<'off' | 'checking' | 'on' | 'error'>('checking')
   const [pushError, setPushError] = useState('')
   const [learnTitle, setLearnTitle] = useState('')
   const [learnTopic, setLearnTopic] = useState('Technology')
@@ -145,6 +194,12 @@ export default function PersonalOS() {
   const [search, setSearch] = useState('')
 
   const completed = tasks.filter(t => t.done).length
+  const accountData = useMemo<PersonalOSData>(() => ({
+    theme, tasks, projects, goals, habits, health, transactions, learning, notes, calendarEvents,
+  }), [theme, tasks, projects, goals, habits, health, transactions, learning, notes, calendarEvents])
+  useEffect(() => {
+    void onSyncData(accountData)
+  }, [accountData, onSyncData])
   const openTasks = tasks.filter(t => !t.done)
   const income = transactions.filter(t => t.type === 'Income').reduce((sum, t) => sum + t.amount, 0)
   const expenses = transactions.filter(t => t.type === 'Expense').reduce((sum, t) => sum + t.amount, 0)
@@ -158,10 +213,17 @@ export default function PersonalOS() {
       new Date(visibleCalendarMonth.getFullYear(), visibleCalendarMonth.getMonth(), index - weekdayOffset + 1),
     )
   }, [visibleCalendarMonth])
-  const selectedDayEvents = calendarEvents
+  const calendarEntries = useMemo<CalendarEntry[]>(() => [
+    ...calendarEvents.map(event => ({ ...event, kind: 'event' as const })),
+    ...[...new Set(calendarDates.map(date => date.getFullYear()))].flatMap(indiaHolidaysForYear),
+  ], [calendarDates, calendarEvents])
+  const selectedDayEvents = calendarEntries
     .filter(event => event.date === selectedCalendarDate)
-    .sort((first, second) => first.time.localeCompare(second.time))
-  const eventsByDate = calendarEvents.reduce<Record<string, CalendarEvent[]>>((events, event) => {
+    .sort((first, second) => {
+      if (first.kind !== second.kind) return first.kind === 'holiday' ? -1 : 1
+      return first.kind === 'event' && second.kind === 'event' ? first.time.localeCompare(second.time) : 0
+    })
+  const eventsByDate = calendarEntries.reduce<Record<string, CalendarEntry[]>>((events, event) => {
     events[event.date] = [...(events[event.date] ?? []), event]
     return events
   }, {})
@@ -172,21 +234,40 @@ export default function PersonalOS() {
     setVisibleCalendarMonth(new Date(selected.getFullYear(), selected.getMonth(), 1))
   }
 
-  const queuePushCalendarSync = (token: string, events: CalendarEvent[]) => {
+  const queuePushCalendarSync = (events: CalendarEvent[]) => {
     const queuedSync = pushSyncQueueRef.current
       .catch(() => undefined)
-      .then(() => syncPushCalendarEvents(token, events))
+      .then(() => syncPushCalendarEvents(events))
     pushSyncQueueRef.current = queuedSync
     return queuedSync
   }
 
   useEffect(() => {
-    if (!pushSessionToken) return
     let cancelled = false
-    queuePushCalendarSync(pushSessionToken, calendarEvents)
+    const checkSubscription = async () => {
+      const registration = 'serviceWorker' in navigator ? await navigator.serviceWorker.getRegistration('/') : undefined
+      const subscription = await registration?.pushManager.getSubscription()
+      const endpoint = subscription ? `?endpoint=${encodeURIComponent(subscription.endpoint)}` : ''
+      const response = await fetch('/api/push/status' + endpoint, { credentials: 'same-origin' })
+      if (!response.ok) throw await apiError(response)
+      const status: { subscriptionCount: number; currentDeviceSubscribed: boolean } = await response.json()
+      if (cancelled) return
+      setPushStatus(status.currentDeviceSubscribed ? 'on' : 'off')
+    }
+    checkSubscription().catch(error => {
+      if (cancelled) return
+      setPushStatus('error')
+      setPushError(error instanceof Error ? error.message : 'Could not check calendar reminders.')
+    })
+    return () => { cancelled = true }
+  }, [account.id])
+
+  useEffect(() => {
+    if (pushStatus !== 'on') return
+    let cancelled = false
+    queuePushCalendarSync(calendarEvents)
       .then(() => {
         if (cancelled) return
-        setPushStatus('on')
         setPushError('')
       })
       .catch(error => {
@@ -194,10 +275,9 @@ export default function PersonalOS() {
         const message = error instanceof Error ? error.message : 'Could not sync calendar reminders.'
         setPushStatus('error')
         setPushError(message)
-        if (message.includes('(401)')) setPushSessionToken('')
       })
     return () => { cancelled = true }
-  }, [calendarEvents, pushSessionToken, setPushSessionToken])
+  }, [calendarEvents, pushStatus])
 
   const enablePushNotifications = async () => {
     setPushError('')
@@ -210,10 +290,6 @@ export default function PersonalOS() {
       if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
         throw new Error('This browser does not support web push notifications.')
       }
-      if (!pushPassword.trim()) {
-        throw new Error('Enter the push access password configured on the server.')
-      }
-
       let permission = Notification.permission
       if (permission === 'default') permission = await Notification.requestPermission()
       if (permission !== 'granted') {
@@ -226,14 +302,6 @@ export default function PersonalOS() {
       if (!config.configured || !config.publicKey) {
         throw new Error(`The push server is not configured. Missing: ${config.missing.join(', ') || 'VAPID keys'}.`)
       }
-
-      const loginResponse = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: pushPassword }),
-      })
-      if (!loginResponse.ok) throw await apiError(loginResponse)
-      const login: { token: string } = await loginResponse.json()
 
       await navigator.serviceWorker.register('/sw.js')
       const registration = await navigator.serviceWorker.ready
@@ -248,16 +316,14 @@ export default function PersonalOS() {
       const subscriptionResponse = await fetch('/api/push/subscription', {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${login.token}`,
           'Content-Type': 'application/json',
+          'X-PersonalOS-Request': '1',
         },
         body: JSON.stringify({ subscription: subscription.toJSON() }),
       })
       if (!subscriptionResponse.ok) throw await apiError(subscriptionResponse)
 
-      await queuePushCalendarSync(login.token, calendarEvents)
-      setPushSessionToken(login.token)
-      setPushPassword('')
+      await queuePushCalendarSync(calendarEvents)
       setPushStatus('on')
     } catch (error) {
       setPushStatus('error')
@@ -276,8 +342,8 @@ export default function PersonalOS() {
         const response = await fetch('/api/push/subscription', {
           method: 'DELETE',
           headers: {
-            Authorization: `Bearer ${pushSessionToken}`,
             'Content-Type': 'application/json',
+            'X-PersonalOS-Request': '1',
           },
           body: JSON.stringify({ endpoint: subscription.endpoint }),
         })
@@ -285,7 +351,6 @@ export default function PersonalOS() {
         await subscription.unsubscribe()
       }
 
-      setPushSessionToken('')
       setPushStatus('off')
     } catch (error) {
       setPushStatus('error')
@@ -297,11 +362,23 @@ export default function PersonalOS() {
     setPushError('')
     setPushStatus('checking')
     try {
-      await queuePushCalendarSync(pushSessionToken, calendarEvents)
+      await queuePushCalendarSync(calendarEvents)
       setPushStatus('on')
     } catch (error) {
       setPushStatus('error')
       setPushError(error instanceof Error ? error.message : 'Could not sync calendar reminders.')
+    }
+  }
+
+  const signOutFromWorkspace = async () => {
+    try {
+      const registration = await navigator.serviceWorker?.getRegistration('/')
+      const subscription = await registration?.pushManager.getSubscription()
+      const signedOut = await onSignOut(subscription?.endpoint)
+      if (signedOut && subscription) await subscription.unsubscribe()
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Could not remove push reminders from this device.'
+      setPushError(message)
     }
   }
 
@@ -486,14 +563,14 @@ export default function PersonalOS() {
               key={key}
               className={`po-calendar-day${isCurrentMonth ? '' : ' outside'}${isSelected ? ' selected' : ''}${key === today() ? ' is-today' : ''}`}
               aria-pressed={isSelected}
-              aria-label={`${date.toLocaleDateString(undefined, { dateStyle: 'full' })}${dayEvents.length ? `, ${dayEvents.length} event${dayEvents.length === 1 ? '' : 's'}` : ''}`}
+              aria-label={`${date.toLocaleDateString(undefined, { dateStyle: 'full' })}${dayEvents.length ? `, ${dayEvents.length} calendar item${dayEvents.length === 1 ? '' : 's'}` : ''}`}
               onClick={() => selectCalendarDate(key)}
             >
               <span className="po-calendar-day-number">{date.getDate()}</span>
               <span className="po-calendar-events">
-                {dayEvents.slice(0, 2).map(calendarEvent => {
-                  const color = calendarEvent.color || '#4e735b'
-                  return <span className="po-calendar-event-chip" key={calendarEvent.id} style={{ backgroundColor: color, color: eventTextColor(color) }}>{calendarEvent.title}</span>
+                {dayEvents.slice(0, 2).map(calendarEntry => {
+                  const color = calendarEntry.color || '#4e735b'
+                  return <span className={`po-calendar-event-chip${calendarEntry.kind === 'holiday' ? ' holiday' : ''}`} key={calendarEntry.id} style={{ backgroundColor: color, color: eventTextColor(color) }}>{calendarEntry.title}</span>
                 })}
                 {dayEvents.length > 2 && <span className="po-calendar-more">+{dayEvents.length - 2} more</span>}
               </span>
@@ -501,6 +578,7 @@ export default function PersonalOS() {
             </button>
           })}
         </div>
+        <div className="po-calendar-legend"><span aria-hidden="true" /> India public and festival holidays</div>
       </Panel>
 
       <aside className="po-calendar-side">
@@ -518,7 +596,21 @@ export default function PersonalOS() {
           </form>
         </Panel>
         <Panel title={new Date(`${selectedCalendarDate}T00:00:00`).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })} action={<span className="po-muted">{selectedDayEvents.length} events</span>}>
-          {selectedDayEvents.length ? <div className="po-list">{selectedDayEvents.map(calendarEvent => <div className="po-list-row" key={calendarEvent.id}><time className="po-calendar-event-time">{calendarEvent.time}</time><div className="po-row-main"><strong>{calendarEvent.title}</strong>{calendarEvent.note && <small>{calendarEvent.note}</small>}</div><button type="button" className="po-icon-btn" aria-label={`Edit ${calendarEvent.title}`} onClick={() => editCalendarEvent(calendarEvent)}>✎</button><button type="button" className="po-icon-btn" aria-label={`Delete ${calendarEvent.title}`} onClick={() => { remove(setCalendarEvents, calendarEvent.id); if (editingCalendarEventId === calendarEvent.id) cancelCalendarEventEdit() }}>×</button></div>)}</div> : <p className="po-calendar-empty">Nothing planned for this day. Add an event to get started.</p>}
+          {selectedDayEvents.length ? <div className="po-list">{selectedDayEvents.map(calendarEvent => {
+            const color = calendarEvent.color || '#4e735b'
+            return <div className="po-list-row po-calendar-agenda-item" key={calendarEvent.id} style={{ borderLeftColor: color }}>
+              <time className="po-calendar-event-time">{calendarEvent.kind === 'holiday' ? 'All day' : calendarEvent.time}</time>
+              <div className="po-row-main">
+                <strong>{calendarEvent.title}</strong>
+                {calendarEvent.kind === 'event' && calendarEvent.note && <small>{calendarEvent.note}</small>}
+                {calendarEvent.kind === 'holiday' && <small>India holiday · Built in</small>}
+              </div>
+              {calendarEvent.kind === 'event' && <>
+                <button type="button" className="po-icon-btn" aria-label={`Edit ${calendarEvent.title}`} onClick={() => editCalendarEvent(calendarEvent)}>✎</button>
+                <button type="button" className="po-icon-btn" aria-label={`Delete ${calendarEvent.title}`} onClick={() => { remove(setCalendarEvents, calendarEvent.id); if (editingCalendarEventId === calendarEvent.id) cancelCalendarEventEdit() }}>×</button>
+              </>}
+            </div>
+          })}</div> : <p className="po-calendar-empty">Nothing planned for this day. Add an event to get started.</p>}
         </Panel>
       </aside>
     </div>
@@ -535,12 +627,16 @@ export default function PersonalOS() {
   } else if (section === 'Finances') {
     page = <><div className="po-stats"><div className="po-stat"><span>Recorded income</span><strong>₹{income.toLocaleString('en-IN')}</strong></div><div className="po-stat"><span>Recorded expenses</span><strong>₹{expenses.toLocaleString('en-IN')}</strong></div><div className="po-stat"><span>Net recorded</span><strong className={income-expenses<0?'po-negative':''}>₹{(income-expenses).toLocaleString('en-IN')}</strong></div></div><Panel title="Record a transaction"><form className="po-form" onSubmit={addTransaction}><Field label="Description"><input value={moneyTitle} onChange={e => setMoneyTitle(e.target.value)} placeholder="What was this for?" /></Field><Field label="Amount (₹)"><input type="number" min="0.01" step=".01" value={moneyAmount} onChange={e => setMoneyAmount(e.target.value)} placeholder="0.00" /></Field><Field label="Type"><select value={moneyType} onChange={e => setMoneyType(e.target.value as Transaction['type'])}><option>Expense</option><option>Income</option></select></Field><Field label="Category"><input value={moneyCategory} onChange={e => setMoneyCategory(e.target.value)} /></Field><button className="po-primary">Save transaction</button></form></Panel><Panel title="Transaction history">{transactions.length ? <div className="po-list">{transactions.map(t => <div className="po-list-row" key={t.id}><div className="po-row-main"><strong>{t.title}</strong><small>{t.category} · {t.date}</small></div><b className={t.type==='Income'?'po-positive':'po-negative'}>{t.type==='Income'?'+':'−'}₹{t.amount.toLocaleString('en-IN')}</b><button className="po-icon-btn" onClick={() => remove(setTransactions,t.id)}>×</button></div>)}</div> : <Empty title="No transactions yet" detail="Record income and spending to build a personal money history. Nothing is connected to your bank." />}</Panel></>
   } else if (section === 'Learning') {
-    page = <><Panel title="Add something to learn"><form className="po-form" onSubmit={addLearning}><Field label="Skill or topic"><input value={learnTitle} onChange={e => setLearnTitle(e.target.value)} placeholder="e.g. TypeScript fundamentals" /></Field><Field label="Category"><select value={learnTopic} onChange={e => setLearnTopic(e.target.value)}><option>Technology</option><option>Business</option><option>Creative</option><option>Communication</option><option>Personal growth</option></select></Field><button className="po-primary">Add to learning list</button></form></Panel><Panel title="Learning roadmap">{learning.length ? <div className="po-list">{learning.map(item => <div className="po-list-row" key={item.id}><div className="po-row-main"><strong>{item.title}</strong><small>{item.topic} · {item.minutes} minutes logged</small></div><select aria-label={'Status for '+item.title} value={item.status} onChange={e => setLearning(current => current.map(x => x.id===item.id?{...x,status:e.target.value as LearningItem['status']}:x))}><option>To learn</option><option>Learning</option><option>Completed</option></select><button className="po-icon-btn" onClick={() => remove(setLearning,item.id)}>×</button></div>)}</div> : <Empty title="Choose your next skill" detail="Collect the skills and subjects you want to study. Track status as you progress." />}</Panel></>
+    page = <><Panel title="Add something to learn"><form className="po-form" onSubmit={addLearning}><Field label="Skill or topic"><input value={learnTitle} onChange={e => setLearnTitle(e.target.value)} placeholder="e.g. TypeScript fundamentals" /></Field><Field label="Category"><select value={learnTopic} onChange={e => setLearnTopic(e.target.value)}><option>Technology</option><option>Business</option><option>Creative</option><option>Communication</option><option>Personal growth</option></select></Field><button className="po-primary">Add to learning list</button></form></Panel><Panel title="Learning roadmap">{learning.length ? <div className="po-list">{learning.map(item => <div className="po-list-row po-learning-row" key={item.id}><div className="po-row-main"><strong>{item.title}</strong><small>{item.topic} · {item.minutes} minutes logged</small></div><select aria-label={'Status for '+item.title} value={item.status} onChange={e => setLearning(current => current.map(x => x.id===item.id?{...x,status:e.target.value as LearningItem['status']}:x))}><option>To learn</option><option>Learning</option><option>Completed</option></select><button className="po-icon-btn" onClick={() => remove(setLearning,item.id)}>×</button></div>)}</div> : <Empty title="Choose your next skill" detail="Collect the skills and subjects you want to study. Track status as you progress." />}</Panel></>
   } else if (section === 'Journal' || section === 'Clarity') {
     const kind: Note['kind'] = section === 'Journal' ? 'Journal' : 'Clarity'
     const entries = notes.filter(n => n.kind === kind)
     page = <><Panel title={section === 'Journal' ? 'Write a journal entry' : 'Clear your mind'}><form className="po-note-form" onSubmit={event => addNote(event, kind)}><Field label="Title"><input value={noteTitle} onChange={e => setNoteTitle(e.target.value)} placeholder={section === 'Journal'?'A moment worth remembering':'What is on your mind?'} /></Field><Field label="Your thoughts"><textarea rows={5} value={noteBody} onChange={e => setNoteBody(e.target.value)} placeholder={section === 'Journal'?'Reflect on your day…':'Capture loose thoughts, decisions, blockers or ideas…'} /></Field><div className="po-form-end"><span className="po-muted">Saved on this device</span><button className="po-primary" type="submit">Save entry</button></div></form></Panel><Panel title={section === 'Journal' ? 'Your journal' : 'Clarity archive'}>{entries.length ? <div className="po-note-list">{entries.map(n => <article key={n.id}><div className="po-note-top"><span>{n.date}</span><button className="po-icon-btn" onClick={() => remove(setNotes,n.id)}>×</button></div><strong>{n.title}</strong><p>{n.body}</p></article>)}</div> : <Empty title={section === 'Journal'?'Your story starts with one entry':'Make space to think'} detail="Your writing is private to this browser profile and is not sent to a server." />}</Panel></>
   } else {
+    const signInMethods = [
+      account.passwordLoginEnabled ? 'Email and password' : '',
+      account.googleLinked ? 'Google' : '',
+    ].filter(Boolean).join(' · ')
     const pushStatusLabel = pushStatus === 'checking'
       ? 'Connecting and syncing reminders…'
       : pushStatus === 'on'
@@ -550,8 +646,30 @@ export default function PersonalOS() {
           : 'Push reminders are off'
 
     page = <>
+      <Panel title="Account details">
+        <div className="po-account-details">
+          <div><span>Email address</span><strong>{account.email}</strong></div>
+          <div><span>Sign-in methods</span><strong>{signInMethods}</strong></div>
+        </div>
+        <p className="po-settings-copy">{account.googleLinked ? 'Google sign-in is linked to this account.' : 'Link Google after signing in if you want to use both sign-in methods.'}</p>
+        {googleConfigured && !account.googleLinked && <div className="po-google-button" ref={googleButtonRef} />}
+        {!googleConfigured && !account.googleLinked && <p className="po-auth-note">Google linking becomes available after the server’s Google client ID is configured.</p>}
+        {googleError && <p className="po-push-error" role="alert">{googleError}</p>}
+        {!account.googleLinked && <p className="po-auth-note">Email verification and password recovery are not available yet. Keep a backup of your data.</p>}
+        <div className="po-settings-actions"><button className="po-secondary" type="button" onClick={() => void signOutFromWorkspace()}>Sign out</button></div>
+      </Panel>
+      <Panel title="Cloud sync">
+        <p className="po-settings-copy">Your workspace is available on desktop and mobile when you sign in with this account. Changes are checked across devices automatically.</p>
+        <div className={`po-push-status${syncState === 'error' || syncState === 'conflict' ? ' has-error' : ''}`} role="status" aria-live="polite">
+          <span className="po-status-dot" />
+          <strong>{syncState === 'synced' ? 'Up to date' : syncState === 'syncing' ? 'Syncing…' : syncState === 'conflict' ? 'Updated on another device' : 'Sync needs attention'}</strong>
+        </div>
+        {syncError && <p className="po-push-error" role="alert">{syncError}</p>}
+        {syncState === 'conflict' && <div className="po-settings-actions"><button className="po-secondary" type="button" onClick={() => void onReloadCloudData()}>Load latest cloud data</button></div>}
+        {syncState === 'error' && <div className="po-settings-actions"><button className="po-secondary" type="button" onClick={() => void onRetrySync()}>Retry sync</button></div>}
+      </Panel>
       <Panel title="Your data stays yours">
-        <p className="po-settings-copy">Personal OS stores your records locally in this browser on this device. Export a JSON backup regularly. Calendar events are sent to the push service only when you enable event reminders.</p>
+        <p className="po-settings-copy">Your records sync securely to your account so they are available on desktop and mobile. A local copy is also kept in this browser. Export a JSON backup regularly.</p>
         <div className="po-settings-actions">
           <button className="po-primary" onClick={exportData}>Export full backup (.json)</button>
           <label className="po-secondary">Import backup<input type="file" accept="application/json,.json" onChange={e => importData(e.target.files?.[0])} /></label>
@@ -563,18 +681,13 @@ export default function PersonalOS() {
           <strong>{pushStatusLabel}</strong>
         </div>
         <p className="po-settings-copy">Receive a browser notification 5 minutes before each upcoming calendar event. This sends event titles, times and notes to your configured push server. Notifications require browser permission, HTTPS, and an always-on server.</p>
-        {pushSessionToken ? (
+        {pushStatus === 'on' ? (
           <div className="po-settings-actions">
-            <button className="po-secondary" type="button" disabled={pushStatus === 'checking'} onClick={retryPushSync}>Sync reminders</button>
-            <button className="po-secondary" type="button" disabled={pushStatus === 'checking'} onClick={disablePushNotifications}>Turn off on this device</button>
+            <button className="po-secondary" type="button" onClick={retryPushSync}>Sync reminders</button>
+            <button className="po-secondary" type="button" onClick={disablePushNotifications}>Turn off on this device</button>
           </div>
         ) : (
-          <form className="po-push-form" onSubmit={event => { event.preventDefault(); void enablePushNotifications() }}>
-            <Field label="Push access password">
-              <input type="password" autoComplete="current-password" value={pushPassword} onChange={event => setPushPassword(event.target.value)} placeholder="Set on the push server" />
-            </Field>
-            <button className="po-primary" type="submit" disabled={pushStatus === 'checking'}>Enable push reminders</button>
-          </form>
+          <button className="po-primary" type="button" onClick={() => void enablePushNotifications()} disabled={pushStatus === 'checking'}>Enable push reminders</button>
         )}
         {pushError && <p className="po-push-error" role="alert">{pushError}</p>}
       </Panel>
@@ -588,21 +701,21 @@ export default function PersonalOS() {
         </div>
       </Panel>
       <Panel title="About this build">
-        <p className="po-settings-copy">Tasks, projects, goals, habits, health check-ins, learning records, transactions, calendar events and notes are stored in browser storage. Push reminders use the optional private server configured for this app.</p>
+        <p className="po-settings-copy">Your tasks, projects, goals, habits, health check-ins, learning records, transactions, calendar events, notes and appearance sync with your account. Push reminders use the optional private server configured for this app.</p>
       </Panel>
     </>
   }
 
   return <div className={'personal-os'+(theme==='dark'?' po-dark':'')}>
     <aside className="po-sidebar"><div className="po-brand"><div className="po-brand-mark">P</div><div><strong>Personal OS</strong><small>Your life, in one place</small></div></div>
-      {['Workspace','Personal','System'].map(group => <div className="po-nav-group" key={group}><span className="po-nav-label">{group}</span>{nav.filter(item=>item.group===group).map(item=><button key={item.id} className={'po-nav-item'+(section===item.id?' active':'')} onClick={()=>setSection(item.id)}><span>{item.icon}</span>{item.label}</button>)}</div>)}
-      <div className="po-sidebar-footer"><span className="po-status-dot" /> Local workspace <small>Private on this device</small></div>
+      {['Workspace','Personal','System'].map(group => <div className="po-nav-group" key={group}><span className="po-nav-label">{group}</span>{nav.filter(item=>item.group===group).map(item=><button key={item.id} className={'po-nav-item'+(section===item.id?' active':'')} onClick={()=>{setSection(item.id);if(item.id==='Settings')onSettingsOpen()}}><span>{item.icon}</span>{item.label}</button>)}</div>)}
+      <div className="po-sidebar-footer"><span className="po-status-dot" /> Account workspace <small>{account.email}</small><button className="po-text-btn" type="button" onClick={() => void signOutFromWorkspace()}>Sign out</button></div>
     </aside>
     <main className="po-main">
-      <header className="po-topbar"><div><span className="po-breadcrumb">PERSONAL OS / {section.toUpperCase()}</span><h1>{title}</h1></div><div className="po-top-actions"><span className="po-today">{new Date().toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})}</span><button className="po-primary po-new-task" onClick={()=>setSection('Tasks')}>＋ New task</button></div></header>
+      <header className="po-topbar"><div><span className="po-breadcrumb">PERSONAL OS / {section.toUpperCase()}</span><h1>{title}</h1></div><div className="po-top-actions"><span className="po-today">{new Date().toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})}</span><button className="po-secondary po-account-btn" type="button" onClick={() => void signOutFromWorkspace()}>Sign out</button><button className="po-primary po-new-task" onClick={()=>setSection('Tasks')}>＋ New task</button></div></header>
       <div className="po-content">{page}</div>
       <footer className="po-footer">Personal OS <span>·</span> Your life is a work in progress.</footer>
-      <MobileTabBar items={nav} activeItem={section} onSelect={(next) => setSection(next as Section)} />
+      <MobileTabBar items={nav} activeItem={section} onSelect={(next) => {const target = next as Section;setSection(target);if(target==='Settings')onSettingsOpen()}} />
     </main>
   </div>
 }

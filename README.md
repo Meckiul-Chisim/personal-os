@@ -13,7 +13,7 @@ A local-first personal operating system for bringing work, projects, goals, habi
 - **Learning** — maintain a learning roadmap and update learning status.
 - **Finances** — record income and expenses in INR and see your recorded net total.
 - **Journal and Clarity** — save reflections, ideas, decisions and brain dumps.
-- **Settings** — light/dark appearance, JSON backup export/import, and optional calendar push reminders.
+- **Settings** — account details, Google linking, cross-device sync status, appearance, JSON backups and optional calendar push reminders.
 
 ## Run locally
 
@@ -31,26 +31,33 @@ npm run build
 npm run preview
 ```
 
-## Calendar push reminders
+## Accounts and cross-device sync
 
-Push reminders are optional and require a backend server that stays online. Calendar events remain in browser storage, but when reminders are enabled their titles, times and notes are synced to the server so it can notify you five minutes before each event.
+Personal OS supports email/password accounts and Google sign-in. Account data is stored in the server's SQLite database and syncs when you use the same account on desktop and mobile. The browser also keeps an account-scoped local copy. When you first sign in on a device with older local data, the app asks whether to merge it into the account or use the cloud copy.
 
 1. Copy `.env.example` to `.env`.
-2. Generate VAPID keys with `npm run generate:vapid` and copy the displayed public/private keys into `.env`.
-3. Set a strong `PUSH_API_PASSWORD`, a random `PUSH_SESSION_SECRET` (for example, generate one with `node -e "console.log(require('node:crypto').randomBytes(32).toString('base64url'))"`), and your `VAPID_SUBJECT` email.
-4. For local development, run `npm run dev:api` and `npm run dev` in separate terminals, then enable reminders from **Settings → Calendar push reminders**.
-5. For deployment, run `npm run build` followed by `npm start`. Host the app and API together on a single HTTPS Node.js service instance with a persistent disk for `DATABASE_PATH`. Configure the environment variables in the host's secret settings; do not commit `.env`. The reminder scheduler runs in this service, so it must remain online.
+2. To enable Google sign-in, create an OAuth 2.0 **Web application** client in Google Cloud Console. Add the development origin (for example `http://localhost:5173`) and your production HTTPS origin to its authorized JavaScript origins, then set `GOOGLE_CLIENT_ID` to that client ID. Email/password sign-in works without Google credentials.
+3. Run `npm run dev:api` and `npm run dev` in separate terminals. Create an account in the app.
+4. For desktop/mobile use outside localhost, deploy the app and API together on an HTTPS Node.js service with a persistent disk for `DATABASE_PATH`. Configure environment variables in the host's secret settings; do not commit `.env`.
+
+Passwords are stored as salted scrypt hashes and account sessions use HTTP-only cookies. Google can create an account; to use Google with an existing email/password account, sign in first and link it from **Settings**. Email verification and password-reset email are not configured, so an account without a linked Google identity cannot be recovered if its password is lost. Keep a JSON backup.
+
+## Calendar push reminders
+
+Push reminders are optional and require a backend server that stays online. When reminders are enabled, upcoming calendar event titles, times and notes are synced to the server so it can notify you five minutes before each event.
+
+1. Generate VAPID keys with `npm run generate:vapid` and copy the displayed public/private keys into `.env`; set `VAPID_SUBJECT` to your email.
+2. Sign in, then enable reminders from **Settings → Calendar push reminders**. Reminder subscriptions and events are scoped to the signed-in account.
+3. For deployment, run `npm run build` followed by `npm start`. The reminder scheduler runs in this service, so it must remain online.
+
+After upgrading an existing deployment, re-enable push reminders on each device. Previously saved push subscriptions are not migrated to account ownership.
 
 ## Data and privacy
 
-This first foundation uses browser `localStorage` and starts with empty records rather than fabricated sample activity. Data stays in the current browser profile on the current device. Export a JSON backup regularly. Clearing browser data can remove these records.
+Account data is stored in the server-side SQLite database and also cached in the signed-in account's browser storage. The server stores account data as readable JSON; host operators with database access can access it. Use a host and database you trust, enable HTTPS, and export a JSON backup regularly.
 
-When push reminders are enabled, the server also stores the browser push subscription and upcoming event titles, times and notes needed to deliver notifications. Push credentials and server-side event data are not included in JSON backups.
-
-## Not connected yet
-
-General cross-device sync, cloud backup, integrations with bank or health services, and native mobile packaging are future work. The current responsive web app can be opened on a phone, but local browser storage does **not** synchronize phone and desktop data.
+When push reminders are enabled, the server also stores the browser push subscription and upcoming event titles, times and notes needed to deliver notifications. Push credentials and server-side event data are not included in JSON backups. Native mobile packaging and integrations with bank or health services are not included.
 
 ## Product direction
 
-Personal OS is intended to become a personal command center: a connected view of what matters, what you are building, how you are progressing, and how your life is going. The next architecture milestone is a secure sync layer with explicit backup and conflict handling, followed by a PWA install experience.
+Personal OS is intended to become a personal command center: a connected view of what matters, what you are building, how you are progressing, and how your life is going.

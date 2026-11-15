@@ -8,6 +8,7 @@
     "dev:api": "node server/push-server.js",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
+    "test": "node --test",
     "preview": "vite preview",
     "start": "node server/push-server.js",
     "generate:vapid": "web-push generate-vapid-keys"
@@ -17,6 +18,7 @@
     "dotenv": "^18.0.10",
     "express": "^5.3.0",
     "express-rate-limit": "^8.7.4",
+    "google-auth-library": "^10.3.0",
     "lucide-react": "^1.72.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
