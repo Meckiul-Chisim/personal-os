@@ -5,6 +5,8 @@ A local-first personal operating system for bringing work, projects, goals, habi
 ## Current foundation
 
 - **Overview and My Day** — a live summary of your own records and tasks due today.
+- **Timetable & routine** — build a weekly routine from recurring blocks (study, work, health, breaks). See it as a week grid or a single day, tick blocks off each day, and get a warning when blocks overlap.
+- **Calendar** — month view with your events and built-in India holidays.
 - **Tasks** — capture, categorize, prioritize, search, complete and delete tasks.
 - **Projects** — create work or personal projects and update progress.
 - **Goals** — define outcomes and track progress.
@@ -14,6 +16,22 @@ A local-first personal operating system for bringing work, projects, goals, habi
 - **Finances** — record income and expenses in INR and see your recorded net total.
 - **Journal and Clarity** — save reflections, ideas, decisions and brain dumps.
 - **Settings** — account details, Google linking, cross-device sync status, appearance, JSON backups and optional calendar push reminders.
+
+## Project structure
+
+```
+src/
+  features/      one folder per section (tasks, timetable, calendar, ...)
+  components/    ui/ (panels, fields, buttons) and layout/ (sidebar, top bar, tab bar)
+  hooks/         shared hooks (useStored, usePushReminders, useNow, ...)
+  lib/           plain helper functions (dates, backup parsing, timetable logic)
+  styles/        tokens.css (colours and sizes for both themes) plus per-area stylesheets
+  types.ts       every record type that syncs to your account
+  nav.ts         the list of sections shown in the sidebar and mobile bar
+server/          Express + SQLite API (accounts, sync, push reminders) and its tests
+```
+
+To change the look of the whole app, edit `src/styles/tokens.css`. Light and dark themes are defined there.
 
 ## Run locally
 

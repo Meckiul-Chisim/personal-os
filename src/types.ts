@@ -1,91 +1,152 @@
-export type SectionName =
-  | 'Dashboard'
-  | 'My Day'
+// Shared types for Personal OS. Every record that syncs to the server lives here.
+
+export type Section =
+  | 'Overview'
+  | 'Today'
+  | 'Calendar'
+  | 'Timetable'
   | 'Tasks'
   | 'Projects'
-  | 'Goals & Growth'
-  | 'Habits & Routines'
-  | 'Journal & Notes'
-  | 'Clarity Center'
-  | 'Calendar'
-  | 'Life Overview'
-  | 'Insights & Reviews'
+  | 'Goals'
+  | 'Habits'
+  | 'Health'
+  | 'Learning'
+  | 'Finances'
+  | 'Journal'
+  | 'Clarity'
   | 'Settings'
 
-export type AppTheme = 'light' | 'dark'
-export type WeekStartsOn = 'monday' | 'sunday'
-
-export type TaskStatus = 'Not started' | 'In progress' | 'Waiting' | 'Completed'
-export type Priority = 'High' | 'Medium' | 'Low'
+export type Theme = 'light' | 'dark'
 
 export type Task = {
-  id: number
+  id: string
   title: string
-  category: string
-  priority: Priority
-  status: TaskStatus
+  area: string
   due: string
-  scheduledDate?: string
-  tags: string[]
-  time: string
-  project: string
+  priority: 'Low' | 'Medium' | 'High'
+  done: boolean
+  createdAt: string
 }
 
 export type Project = {
-  id: number
-  title: string
-  category: string
-  status: 'Planning' | 'Active' | 'On hold' | 'Completed' | 'Archived'
+  id: string
+  name: string
+  area: string
+  status: 'Active' | 'On hold' | 'Completed'
   progress: number
-  target: string
-  highlight: string
+  next: string
 }
 
 export type Goal = {
-  id: number
+  id: string
   title: string
-  category: string
+  area: string
+  target: string
   progress: number
-  due: string
-  related: string
 }
 
 export type Habit = {
-  id: number
+  id: string
+  name: string
+  frequency: string
+  doneDates: string[]
+}
+
+export type HealthLog = {
+  id: string
+  date: string
+  sleep: number
+  water: number
+  movement: number
+  mood: string
+  note: string
+}
+
+export type Transaction = {
+  id: string
   title: string
-  schedule: string
-  streak: number
-  completion: number
+  amount: number
+  type: 'Income' | 'Expense'
+  category: string
+  date: string
+}
+
+export type LearningItem = {
+  id: string
+  title: string
+  topic: string
+  status: 'To learn' | 'Learning' | 'Completed'
+  minutes: number
 }
 
 export type Note = {
-  id: number
+  id: string
   title: string
-  category: string
-  excerpt: string
-  updated: string
+  body: string
+  kind: 'Journal' | 'Clarity'
+  date: string
 }
 
-export type ClarityItem = {
-  id: number
-  label: string
-  description: string
-  count: number
+export type CalendarEvent = {
+  id: string
+  title: string
+  date: string
+  time: string
+  note: string
+  color?: string
 }
 
-export type OverviewStat = {
-  label: string
-  value: string
-  detail: string
+export type CalendarHoliday = {
+  id: string
+  title: string
+  date: string
+  color: string
+  kind: 'holiday'
 }
 
-export type InsightBar = {
-  label: string
-  value: number
+export type CalendarEntry = (CalendarEvent & { kind: 'event' }) | CalendarHoliday
+
+export const TIMETABLE_CATEGORIES = ['Routine', 'Study', 'Work', 'Health', 'Personal', 'Break'] as const
+export type TimetableCategory = (typeof TIMETABLE_CATEGORIES)[number]
+
+/**
+ * One recurring block in the weekly timetable.
+ * `days` uses JavaScript weekday numbers (0 = Sunday ... 6 = Saturday).
+ * `start` and `end` are 24-hour "HH:MM" strings on the same day.
+ * `doneDates` records the dates (YYYY-MM-DD) on which the block was completed.
+ */
+export type TimetableBlock = {
+  id: string
+  title: string
+  days: number[]
+  start: string
+  end: string
+  category: TimetableCategory
+  color: string
+  note: string
+  doneDates: string[]
 }
 
-export type NavSection = {
-  id: SectionName
-  icon: string
-  description: string
+/** Everything that is saved to the account and synced across devices. */
+export type PersonalOSData = {
+  theme: Theme
+  tasks: Task[]
+  projects: Project[]
+  goals: Goal[]
+  habits: Habit[]
+  health: HealthLog[]
+  transactions: Transaction[]
+  learning: LearningItem[]
+  notes: Note[]
+  calendarEvents: CalendarEvent[]
+  timetable: TimetableBlock[]
 }
+
+export type Account = {
+  id: string
+  email: string
+  googleLinked: boolean
+  passwordLoginEnabled: boolean
+}
+
+export type SyncState = 'syncing' | 'synced' | 'error' | 'conflict'

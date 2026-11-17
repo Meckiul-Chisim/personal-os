@@ -1,0 +1,31 @@
+/* Style entry point. Order matters: tokens first, then base, then the pieces built on them. */
+@import './tokens.css';
+@import './base.css';
+@import './layout.css';
+@import './components.css';
+@import './auth.css';
+@import './calendar.css';
+@import './timetable.css';
+
+/* Intro block used at the top of pages that need one. */
+.po-intro {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.po-intro h2 {
+  font-size: 1.6rem;
+  font-weight: 300;
+  letter-spacing: -0.02em;
+}
+
+.po-intro p {
+  color: var(--text-soft);
+}
+
+/* Auth and error screens render outside the workspace, so they set the theme on <html> too. */
+:root:not([data-theme]) .po-auth-screen {
+  color-scheme: light;
+}
