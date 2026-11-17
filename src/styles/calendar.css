@@ -1,0 +1,154 @@
+/* Month calendar. */
+
+.po-calendar-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 18px;
+  align-items: start;
+}
+
+.po-calendar-side {
+  display: grid;
+  gap: 18px;
+}
+
+.po-calendar-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.po-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.po-calendar-weekday {
+  padding: 4px 0 8px;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.po-calendar-day {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 92px;
+  padding: 8px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--row-bg);
+  text-align: left;
+  transition: background 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
+}
+
+.po-calendar-day:hover {
+  background: var(--surface-strong);
+  transform: translateY(-1px);
+}
+
+.po-calendar-day.outside {
+  opacity: 0.45;
+}
+
+.po-calendar-day.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.po-calendar-day.is-today .po-calendar-day-number {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: var(--on-primary);
+}
+
+.po-calendar-day-number {
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.po-calendar-events {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.po-calendar-chip {
+  display: block;
+  overflow: hidden;
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.po-calendar-more {
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.po-calendar-dot {
+  display: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.po-calendar-legend,
+.po-calendar-empty {
+  margin-top: 14px;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.po-agenda-item {
+  border-left: 4px solid var(--accent);
+}
+
+.po-agenda-time {
+  min-width: 56px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+@media (max-width: 1100px) {
+  .po-calendar-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* On phones the day cells shrink to a number and a dot; tap a day to read its agenda. */
+@media (max-width: 640px) {
+  .po-calendar-grid {
+    gap: 4px;
+  }
+
+  .po-calendar-day {
+    align-items: center;
+    min-height: 52px;
+    padding: 6px 2px;
+  }
+
+  .po-calendar-events {
+    display: none;
+  }
+
+  .po-calendar-dot {
+    display: block;
+  }
+}

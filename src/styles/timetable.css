@@ -1,0 +1,445 @@
+/* Timetable & routine: week grid, day timeline and the block form. */
+
+.po-tt-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 18px;
+  align-items: start;
+}
+
+.po-tt-side {
+  display: grid;
+  gap: 12px;
+}
+
+.po-tt-hint {
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+/* ---------- Week grid ---------- */
+
+.po-week {
+  --hours-col: 46px;
+  overflow-x: auto;
+}
+
+.po-week-head,
+.po-week-body {
+  display: grid;
+  grid-template-columns: var(--hours-col) repeat(7, minmax(78px, 1fr));
+  min-width: 620px;
+}
+
+.po-week-head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding-bottom: 8px;
+}
+
+.po-week-day-label {
+  display: grid;
+  justify-items: center;
+  gap: 1px;
+  padding: 6px 0;
+  border-radius: 12px;
+  color: var(--muted);
+}
+
+.po-week-day-label strong {
+  color: var(--text);
+  font-size: 1.1rem;
+  font-weight: 400;
+}
+
+.po-week-day-label.today {
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+.po-week-day-label.today strong {
+  color: var(--accent-strong);
+  font-weight: 800;
+}
+
+.po-week-body {
+  position: relative;
+}
+
+.po-week-hours {
+  position: relative;
+}
+
+.po-week-hours span {
+  position: absolute;
+  right: 8px;
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 600;
+  transform: translateY(-50%);
+}
+
+.po-week-hours span:first-child {
+  transform: none;
+}
+
+/* Hour lines are drawn by the column background, so they stay aligned with the blocks. */
+.po-week-col {
+  position: relative;
+  border-left: 1px solid var(--line);
+  background-image: linear-gradient(var(--line) 1px, transparent 1px);
+}
+
+.po-week-col.today {
+  background-color: var(--accent-soft);
+}
+
+.po-tt-block {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 4px 8px;
+  overflow: hidden;
+  border: 0;
+  border-left: 3px solid var(--block-color);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--block-color) 24%, var(--block-base));
+  color: var(--text);
+  text-align: left;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.po-tt-block:hover {
+  z-index: 3;
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-1px);
+}
+
+.po-tt-block.selected {
+  box-shadow: 0 0 0 2px var(--block-color);
+}
+
+.po-tt-block.done {
+  opacity: 0.6;
+}
+
+.po-tt-block-title {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  overflow: hidden;
+  font-size: 0.76rem;
+  font-weight: 700;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Very short blocks only have room for the title. */
+.po-tt-block.compact {
+  justify-content: center;
+  padding-block: 2px;
+}
+
+.po-tt-block.compact .po-tt-block-time {
+  display: none;
+}
+
+.po-tt-block-time {
+  overflow: hidden;
+  color: var(--text-soft);
+  font-size: 0.68rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.po-now-line {
+  position: absolute;
+  right: 0;
+  left: 0;
+  z-index: 4;
+  height: 2px;
+  background: var(--danger);
+  pointer-events: none;
+}
+
+.po-now-line::before {
+  position: absolute;
+  top: -4px;
+  left: -4px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--danger);
+  content: '';
+}
+
+/* ---------- Day view ---------- */
+
+.po-day-view {
+  display: grid;
+  gap: 16px;
+}
+
+.po-day-tabs {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.po-day-tab {
+  display: grid;
+  justify-items: center;
+  gap: 1px;
+  padding: 8px 0;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--row-bg);
+  color: var(--muted);
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.po-day-tab strong {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.po-day-tab.today small {
+  color: var(--accent-strong);
+  font-weight: 800;
+}
+
+.po-day-tab.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.po-day-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.po-day-summary h3 {
+  font-size: 1.1rem;
+}
+
+.po-day-progress {
+  display: grid;
+  gap: 4px;
+  width: 160px;
+}
+
+.po-day-progress small {
+  color: var(--muted);
+  text-align: right;
+}
+
+.po-timeline {
+  display: grid;
+  gap: 8px;
+  padding: 0;
+  list-style: none;
+}
+
+.po-timeline-item {
+  display: grid;
+  grid-template-columns: 74px minmax(0, 1fr);
+  gap: 12px;
+  align-items: stretch;
+}
+
+.po-timeline-time {
+  display: grid;
+  align-content: center;
+  justify-items: end;
+}
+
+.po-timeline-time small {
+  color: var(--muted);
+}
+
+.po-timeline-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--block-color);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--block-color) 12%, var(--row-bg));
+}
+
+.po-timeline-item.running .po-timeline-card {
+  box-shadow: 0 0 0 2px var(--block-color), var(--shadow-sm);
+}
+
+.po-timeline-item.is-done .po-row-main strong {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.po-now-marker {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 18px;
+}
+
+.po-now-marker::before {
+  flex: 1;
+  height: 2px;
+  background: var(--danger);
+  content: '';
+}
+
+.po-now-marker span {
+  order: -1;
+  width: 74px;
+  padding-right: 12px;
+  color: var(--danger);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-align: right;
+}
+
+/* Today's routine on the overview. */
+
+.po-schedule-status {
+  margin-bottom: 10px;
+}
+
+.po-schedule-row {
+  border-left: 4px solid var(--block-color);
+}
+
+.po-schedule-row.running {
+  box-shadow: 0 0 0 2px var(--block-color);
+}
+
+/* ---------- Block form ---------- */
+
+.po-tt-form {
+  display: grid;
+  gap: 14px;
+}
+
+.po-fieldset {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.po-fieldset legend {
+  padding: 0;
+  margin-bottom: 6px;
+}
+
+.po-day-chips,
+.po-swatches,
+.po-chip-shortcuts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.po-day-chip {
+  min-width: 44px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--row-bg);
+  color: var(--text-soft);
+  font-size: 0.8rem;
+  font-weight: 700;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.po-day-chip.active {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: var(--on-primary);
+}
+
+.po-chip-shortcuts {
+  gap: 12px;
+}
+
+.po-form-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.po-swatch {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  transition: transform 0.15s ease;
+}
+
+.po-swatch:hover {
+  transform: scale(1.1);
+}
+
+.po-swatch.active {
+  border-color: var(--text);
+  box-shadow: 0 0 0 2px var(--bg);
+}
+
+.po-warning {
+  display: flex;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--warning-soft);
+  color: var(--warning);
+  font-size: 0.84rem;
+}
+
+.po-warning svg {
+  flex: none;
+  margin-top: 2px;
+}
+
+.po-warning ul {
+  margin: 2px 0 0;
+  padding-left: 16px;
+}
+
+@media (max-width: 1100px) {
+  .po-tt-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 560px) {
+  .po-timeline-card .po-chip:not(.live) {
+    display: none;
+  }
+
+  .po-timeline-item {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
+
+  .po-timeline-time {
+    grid-auto-flow: column;
+    justify-content: start;
+    gap: 8px;
+  }
+
+  .po-now-marker span {
+    width: auto;
+    padding-right: 8px;
+  }
+}

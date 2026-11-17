@@ -103,6 +103,8 @@ const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID)
 const AUTH_SESSION_MS = 30 * 24 * 60 * 60 * 1000
 const AUTH_COOKIE = 'personal_os_session'
 const accountDataKeys = ['tasks', 'projects', 'goals', 'habits', 'health', 'transactions', 'learning', 'notes', 'calendarEvents']
+// Lists added after launch. They may be missing from data saved by older versions of the app.
+const optionalAccountDataKeys = ['timetable']
 const accountRateLimit = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 10,
@@ -197,12 +199,28 @@ const optionalAccountSession = (request, response, next) => {
   next()
 }
 
+const isClockTime = value => typeof value === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(value)
+// A recurring timetable block: weekdays 0-6, a start before its end, and bounded text fields.
+const isValidTimetableBlock = block => Array.isArray(block.days)
+  && block.days.length >= 1
+  && block.days.length <= 7
+  && block.days.every(day => Number.isInteger(day) && day >= 0 && day <= 6)
+  && isClockTime(block.start)
+  && isClockTime(block.end)
+  && block.start < block.end
+  && typeof block.title === 'string' && block.title.length > 0 && block.title.length <= 200
+  && (block.note === undefined || (typeof block.note === 'string' && block.note.length <= 2000))
+  && (block.doneDates === undefined || (Array.isArray(block.doneDates) && block.doneDates.length <= 4000 && block.doneDates.every(date => typeof date === 'string' && date.length <= 10)))
+
 const validateAccountData = data => {
   if (!data || typeof data !== 'object' || Array.isArray(data)) return false
   if (data.theme !== 'light' && data.theme !== 'dark') return false
-  if (!accountDataKeys.every(key => Array.isArray(data[key])
-    && data[key].length <= 5000
-    && data[key].every(item => item && typeof item === 'object' && !Array.isArray(item) && typeof item.id === 'string'))) return false
+  const isRecordList = list => Array.isArray(list)
+    && list.length <= 5000
+    && list.every(item => item && typeof item === 'object' && !Array.isArray(item) && typeof item.id === 'string')
+  if (!accountDataKeys.every(key => isRecordList(data[key]))) return false
+  if (!optionalAccountDataKeys.every(key => data[key] === undefined || isRecordList(data[key]))) return false
+  if (data.timetable !== undefined && !data.timetable.every(isValidTimetableBlock)) return false
   return Buffer.byteLength(JSON.stringify(data), 'utf8') <= 1_500_000
 }
 

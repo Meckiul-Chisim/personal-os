@@ -1,0 +1,102 @@
+/*
+ * Design tokens for Personal OS.
+ * Every colour, radius and shadow in the app comes from here, so changing the look
+ * (or adding a theme) means editing this one file.
+ *
+ * Light  = calm off-white with frosted glass and a pale green accent.
+ * Dark   = a quiet night sky (deep navy, soft glass, mint accent).
+ */
+
+:root {
+  /* Surfaces */
+  --bg: #f4f6f3;
+  --surface: rgba(255, 255, 255, 0.66);
+  --surface-strong: rgba(255, 255, 255, 0.9);
+  --surface-solid: #ffffff;
+  --row-bg: rgba(255, 255, 255, 0.55);
+  --input-bg: rgba(255, 255, 255, 0.85);
+  --block-base: #ffffff;
+
+  /* Lines */
+  --border: rgba(255, 255, 255, 0.8);
+  --line: rgba(24, 48, 36, 0.09);
+  --line-strong: rgba(24, 48, 36, 0.22);
+
+  /* Text */
+  --text: #17211b;
+  --text-soft: #46544b;
+  --muted: #5d6b62;
+
+  /* Accent: pale green */
+  --accent: #5f9e7a;
+  --accent-strong: #2f6b4c;
+  --accent-soft: rgba(95, 158, 122, 0.15);
+  --primary: #3f7d5c;
+  --primary-hover: #356b4e;
+  --on-primary: #ffffff;
+
+  /* Status */
+  --danger: #b4443a;
+  --danger-soft: rgba(180, 68, 58, 0.12);
+  --warning: #8a5a12;
+  --warning-soft: rgba(201, 146, 52, 0.18);
+  --positive: #2f7a52;
+
+  /* Shape and depth */
+  --radius-lg: 24px;
+  --radius-md: 16px;
+  --radius-sm: 12px;
+  --blur: 18px;
+  --shadow-sm: 0 1px 2px rgba(23, 45, 33, 0.04), 0 14px 40px -22px rgba(36, 70, 52, 0.35);
+  --shadow-md: 0 2px 4px rgba(23, 45, 33, 0.05), 0 24px 60px -24px rgba(36, 70, 52, 0.4);
+  --highlight: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+
+  /* Ambient glows behind the app */
+  --glow-a: rgba(143, 211, 176, 0.55);
+  --glow-b: rgba(172, 201, 236, 0.5);
+
+  /* Type */
+  --font: 'Manrope Variable', Manrope, Inter, 'Segoe UI', system-ui, sans-serif;
+
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  --bg: #0b1020;
+  --surface: rgba(255, 255, 255, 0.065);
+  --surface-strong: rgba(255, 255, 255, 0.12);
+  --surface-solid: #141b34;
+  --row-bg: rgba(255, 255, 255, 0.045);
+  --input-bg: rgba(255, 255, 255, 0.07);
+  --block-base: #151c38;
+
+  --border: rgba(255, 255, 255, 0.12);
+  --line: rgba(255, 255, 255, 0.09);
+  --line-strong: rgba(255, 255, 255, 0.26);
+
+  --text: #eaf0fb;
+  --text-soft: #c2cce0;
+  --muted: #98a6c0;
+
+  --accent: #8fd3b0;
+  --accent-strong: #9fe0bd;
+  --accent-soft: rgba(143, 211, 176, 0.15);
+  --primary: #8fd3b0;
+  --primary-hover: #a4e0c1;
+  --on-primary: #0b1c15;
+
+  --danger: #ff9086;
+  --danger-soft: rgba(255, 144, 134, 0.14);
+  --warning: #f0c27a;
+  --warning-soft: rgba(240, 194, 122, 0.14);
+  --positive: #8fd3b0;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3), 0 16px 44px -22px rgba(0, 0, 0, 0.7);
+  --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.35), 0 26px 70px -24px rgba(0, 0, 0, 0.8);
+  --highlight: inset 0 1px 0 rgba(255, 255, 255, 0.07);
+
+  --glow-a: rgba(84, 112, 222, 0.34);
+  --glow-b: rgba(128, 86, 206, 0.26);
+
+  color-scheme: dark;
+}

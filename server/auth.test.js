@@ -190,3 +190,62 @@ test('email accounts keep cloud data private and reject stale writes', async () 
   })
   assert.equal(aliceLogin.status, 200)
 })
+
+test('timetable blocks sync, older data without them still saves, invalid blocks are rejected', async () => {
+  const registration = await api('/api/auth/register', {
+    method: 'POST',
+    headers: authHeaders(''),
+    body: JSON.stringify({ email: 'carol@example.com', password: 'carols-long-password' }),
+  })
+  assert.equal(registration.status, 200)
+  const cookie = registration.headers.get('set-cookie')?.split(';')[0]
+  assert.ok(cookie)
+
+  const block = {
+    id: 'block-1',
+    title: 'Morning workout',
+    days: [1, 3, 5],
+    start: '06:30',
+    end: '07:15',
+    category: 'Health',
+    color: '#5f9e7a',
+    note: '',
+    doneDates: ['2026-11-16'],
+  }
+  const save = (data, version) => api('/api/data', {
+    method: 'PUT',
+    headers: authHeaders(cookie),
+    body: JSON.stringify({ data, version }),
+  })
+
+  // Data saved by an older app version has no timetable key and must still be accepted.
+  assert.equal((await save(accountData('light'), 0)).status, 200)
+
+  // A valid block saves and comes back unchanged.
+  assert.equal((await save({ ...accountData('light'), timetable: [block] }, 1)).status, 200)
+  const loaded = await (await api('/api/data', { headers: { Cookie: cookie } })).json()
+  assert.deepEqual(loaded.data.timetable, [block])
+  assert.equal(loaded.version, 2)
+
+  // Each of these is a malformed block, and none of them may overwrite the saved copy.
+  const invalidBlocks = [
+    { ...block, days: [] },
+    { ...block, days: [7] },
+    { ...block, days: [1.5] },
+    { ...block, start: '9:00' },
+    { ...block, start: '25:00' },
+    { ...block, start: '08:00', end: '07:00' },
+    { ...block, start: '08:00', end: '08:00' },
+    { ...block, title: '' },
+    { ...block, id: 42 },
+  ]
+  for (const invalid of invalidBlocks) {
+    const rejected = await save({ ...accountData('light'), timetable: [invalid] }, 2)
+    assert.equal(rejected.status, 400, `expected ${JSON.stringify(invalid)} to be rejected`)
+  }
+  assert.equal((await save({ ...accountData('light'), timetable: 'not-a-list' }, 2)).status, 400)
+
+  const after = await (await api('/api/data', { headers: { Cookie: cookie } })).json()
+  assert.deepEqual(after.data.timetable, [block])
+  assert.equal(after.version, 2)
+})

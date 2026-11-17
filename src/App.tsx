@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
-import PersonalOS, { type PersonalOSData } from './PersonalOS'
+import PersonalOS from './PersonalOS'
+import type { Account, PersonalOSData } from './types'
 
-type Account = { id: string; email: string; googleLinked: boolean; passwordLoginEnabled: boolean }
 type ApiResult<T> = { data: T; response: Response }
 type CloudData = { data: PersonalOSData | null; version: number }
 type Migration = { account: Account; localData: PersonalOSData; cloudData: PersonalOSData | null; version: number }
@@ -33,6 +33,7 @@ const EMPTY_DATA: PersonalOSData = {
   learning: [],
   notes: [],
   calendarEvents: [],
+  timetable: [],
 }
 const STORAGE_KEYS: [keyof PersonalOSData, string][] = [
   ['theme', 'theme'],
@@ -45,7 +46,11 @@ const STORAGE_KEYS: [keyof PersonalOSData, string][] = [
   ['learning', 'learning'],
   ['notes', 'notes'],
   ['calendarEvents', 'calendar-events'],
+  ['timetable', 'timetable'],
 ]
+
+// How long to wait after the last change before saving to the cloud.
+const SYNC_DELAY_MS = 800
 
 class ApiError extends Error {
   status: number
@@ -81,8 +86,10 @@ const normalizeData = (value: unknown): PersonalOSData => {
   const data = value as Partial<PersonalOSData>
   if (data.theme !== 'light' && data.theme !== 'dark') throw new Error('The saved account theme is invalid.')
   for (const [key] of STORAGE_KEYS) {
-    if (key !== 'theme' && !Array.isArray(data[key])) throw new Error('The saved account data is incomplete.')
+    // `timetable` was added later, so older saved data may not have it yet.
+    if (key !== 'theme' && key !== 'timetable' && !Array.isArray(data[key])) throw new Error('The saved account data is incomplete.')
   }
+  if (data.timetable !== undefined && !Array.isArray(data.timetable)) throw new Error('The saved account data is incomplete.')
   return {
     theme: data.theme,
     tasks: data.tasks!,
@@ -94,6 +101,7 @@ const normalizeData = (value: unknown): PersonalOSData => {
     learning: data.learning!,
     notes: data.notes!,
     calendarEvents: data.calendarEvents!,
+    timetable: data.timetable ?? [],
   }
 }
 
@@ -146,6 +154,7 @@ const mergeData = (local: PersonalOSData, cloud: PersonalOSData): PersonalOSData
     learning: mergeList(local.learning, cloud.learning),
     notes: mergeList(local.notes, cloud.notes),
     calendarEvents: mergeList(local.calendarEvents, cloud.calendarEvents),
+    timetable: mergeList(local.timetable, cloud.timetable),
   }
 }
 
@@ -189,6 +198,7 @@ export default function App() {
   const baselineDataRef = useRef<PersonalOSData | null>(null)
   const syncPausedRef = useRef(false)
   const syncInFlightRef = useRef(false)
+  const syncTimerRef = useRef<number | undefined>(undefined)
 
   const activateAccount = useCallback((activeAccount: Account, data: PersonalOSData, version: number) => {
     writeAccountData(activeAccount.id, data, version)
@@ -197,6 +207,7 @@ export default function App() {
     latestDataRef.current = data
     baselineDataRef.current = data
     syncPausedRef.current = false
+    window.clearTimeout(syncTimerRef.current)
     setAccount(activeAccount)
     setSyncState('synced')
     setSyncError('')
@@ -432,11 +443,12 @@ export default function App() {
     }
   }
 
-  const syncData = useCallback(async (data: PersonalOSData) => {
-    latestDataRef.current = data
+  // Saves the latest data to the cloud. Calls are queued so two saves never run at once.
+  const pushToCloud = useCallback(async () => {
     if (syncPausedRef.current) return
     const queuedSync = syncQueueRef.current.catch(() => undefined).then(async () => {
-      if (syncPausedRef.current) return
+      const data = latestDataRef.current
+      if (!data || syncPausedRef.current) return
       setSyncState('syncing')
       setSyncError('')
       syncInFlightRef.current = true
@@ -477,6 +489,23 @@ export default function App() {
     await queuedSync
   }, [])
 
+  // Called whenever the workspace data changes. Waits a moment so quick edits (such as dragging
+  // a slider) become one save, and skips the save when nothing differs from the cloud copy.
+  const syncData = useCallback((data: PersonalOSData) => {
+    latestDataRef.current = data
+    if (syncPausedRef.current) return
+    window.clearTimeout(syncTimerRef.current)
+    const baseline = baselineDataRef.current
+    if (baseline && serializeData(baseline) === serializeData(data)) {
+      if (!syncInFlightRef.current) setSyncState('synced')
+      return
+    }
+    setSyncState('syncing')
+    syncTimerRef.current = window.setTimeout(() => { void pushToCloud() }, SYNC_DELAY_MS)
+  }, [pushToCloud])
+
+  useEffect(() => () => window.clearTimeout(syncTimerRef.current), [])
+
   const reloadCloudData = async () => {
     if (!accountRef.current || !window.confirm('Replace this device’s current data with the latest cloud version? Export a backup first if you need to keep unsynced changes.')) return
     setBusy(true)
@@ -494,7 +523,8 @@ export default function App() {
 
   const retrySync = async () => {
     if (syncPausedRef.current) return
-    if (latestDataRef.current) await syncData(latestDataRef.current)
+    window.clearTimeout(syncTimerRef.current)
+    if (latestDataRef.current) await pushToCloud()
   }
 
   const signOut = async (pushEndpoint?: string) => {
