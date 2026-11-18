@@ -16,8 +16,8 @@ self.addEventListener('push', event => {
 
   event.waitUntil(self.registration.showNotification(message.title || 'Personal OS reminder', {
     body: message.body || 'You have an upcoming event.',
-    icon: '/favicon.svg',
-    badge: '/favicon.svg',
+    icon: '/icons/icon-192.png',
+    badge: '/icons/icon-192.png',
     data: { url: message.url || '/' },
   }))
 })

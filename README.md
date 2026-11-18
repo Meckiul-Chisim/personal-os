@@ -85,6 +85,10 @@ docker run -p 3001:3001 -v personal-os-data:/data --env-file .env personal-os
 
 On Render, `render.yaml` is a ready Blueprint (Docker, 1 GB disk, health check). Persistent disks need a paid instance. Without Docker: `npm ci && npm run build && npm start`.
 
+### Installable app and updates
+
+Personal OS is an installable web app (PWA): browsers offer "Install app", and Settings has an install button. Every build writes `dist/version.json`. Open tabs and installed copies compare it with their own build id (on launch, when the tab regains focus, and every 30 minutes) and show a "new version is ready, Reload" banner when you deploy an update. Data is never touched by an update.
+
 ### Backups
 
 The server writes a consistent copy of the database to `BACKUP_DIR` (default: a `backups` folder next to the database) every `BACKUP_INTERVAL_HOURS` (default 24, `0` disables) and keeps the newest `BACKUP_KEEP` (default 7). To restore, stop the server and copy a backup over the database file. Backups live on the same disk as the database, so also copy them somewhere else now and then, or keep taking JSON exports from Settings.
