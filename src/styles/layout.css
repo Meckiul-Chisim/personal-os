@@ -16,9 +16,10 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
+  min-height: 0;
   margin: 16px 0 16px 16px;
   padding: 20px 14px 14px;
-  overflow-y: auto;
+  overflow: hidden;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
@@ -29,6 +30,7 @@
 
 .po-brand {
   display: flex;
+  flex: none;
   align-items: center;
   gap: 12px;
   padding: 0 8px;
@@ -45,24 +47,36 @@
   color: var(--muted);
 }
 
-.po-brand-mark {
-  display: grid;
-  place-items: center;
+.po-logo {
+  display: block;
   flex: none;
-  width: 38px;
-  height: 38px;
-  border-radius: 12px;
-  background: linear-gradient(145deg, var(--accent), var(--accent-strong));
-  color: #fff;
-  font-weight: 800;
-  box-shadow: 0 8px 20px -8px var(--accent-strong);
+  filter: drop-shadow(0 8px 14px rgba(47, 115, 82, 0.28));
+  user-select: none;
 }
 
+.po-topbar-logo {
+  display: none;
+}
+
+.po-topbar-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* The brand above and the account footer below stay put; only this list scrolls. */
 .po-nav {
   display: flex;
   flex: 1;
   flex-direction: column;
   gap: 16px;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.po-nav::-webkit-scrollbar {
+  display: none;
 }
 
 .po-nav-group {
@@ -107,6 +121,7 @@
 
 .po-sidebar-footer {
   display: flex;
+  flex: none;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
@@ -175,9 +190,9 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  margin: 0 -28px 8px;
-  padding: 20px 28px 14px;
-  background: linear-gradient(var(--bg) 55%, transparent);
+  margin: 0 -28px 0;
+  padding: 20px 28px 26px;
+  background: linear-gradient(var(--bg) 70%, transparent);
 }
 
 .po-breadcrumb {
@@ -247,8 +262,12 @@
   }
 
   .po-topbar {
-    margin: 0 -16px 6px;
-    padding: 16px 16px 10px;
+    margin: 0 -16px 0;
+    padding: 16px 16px 20px;
+  }
+
+  .po-topbar-logo {
+    display: block;
   }
 
   .po-top-actions .po-today-chip,

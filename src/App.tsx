@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import PersonalOS from './PersonalOS'
+import { Logo } from './components/ui/Logo'
 import type { Account, PersonalOSData } from './types'
 
 type ApiResult<T> = { data: T; response: Response }
@@ -548,17 +549,17 @@ export default function App() {
   }
 
   if (mode === 'loading') {
-    return <div className="po-auth-screen"><div className="po-auth-card"><div className="po-brand-mark">P</div><h1>Personal OS</h1><p>Connecting to your private workspace…</p></div></div>
+    return <div className="po-auth-screen"><div className="po-auth-card"><Logo size={48} /><h1>Personal OS</h1><p>Connecting to your private workspace…</p></div></div>
   }
 
   if (mode === 'error') {
-    return <div className="po-auth-screen"><div className="po-auth-card"><div className="po-brand-mark">P</div><h1>Personal OS</h1><p className="po-auth-error" role="alert">{appError}</p><button className="po-primary" type="button" onClick={() => window.location.reload()}>Try again</button></div></div>
+    return <div className="po-auth-screen"><div className="po-auth-card"><Logo size={48} /><h1>Personal OS</h1><p className="po-auth-error" role="alert">{appError}</p><button className="po-primary" type="button" onClick={() => window.location.reload()}>Try again</button></div></div>
   }
 
   if (mode === 'migration' && migration) {
     const hasCloudData = Boolean(migration.cloudData && hasRecords(migration.cloudData))
     return <div className="po-auth-screen"><section className="po-auth-card po-migration-card">
-      <div className="po-brand-mark">P</div>
+      <Logo size={48} />
       <h1>Bring your data with you</h1>
       <p>This device has personal data that is not in <strong>{migration.account.email}</strong>’s cloud workspace.</p>
       <p>Merge this device’s records with the cloud account? Items with the same ID use this device’s version. Your original local data remains on this device.</p>
@@ -589,7 +590,7 @@ export default function App() {
 
   return <div className="po-auth-screen">
     <section className="po-auth-card">
-      <div className="po-brand-mark">P</div>
+      <Logo size={48} />
       <h1>{authMode === 'login' ? 'Welcome back' : 'Create your account'}</h1>
       <p>Sign in to keep your personal workspace in sync across devices.</p>
       <form className="po-auth-form" onSubmit={event => { void submitAuth(event) }}>

@@ -1,5 +1,6 @@
 import { LogOut } from 'lucide-react'
 import { NAV_GROUPS, NAV_ITEMS } from '../../nav'
+import { Logo } from '../ui/Logo'
 import type { Section } from '../../types'
 
 /** Desktop navigation. Hidden on small screens, where the bottom tab bar is used instead. */
@@ -12,7 +13,7 @@ export function Sidebar({ section, email, onSelect, onSignOut }: {
   return (
     <aside className="po-sidebar">
       <div className="po-brand">
-        <div className="po-brand-mark">P</div>
+        <Logo size={40} />
         <div>
           <strong>Personal OS</strong>
           <small>Your life, in one place</small>
