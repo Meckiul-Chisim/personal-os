@@ -9,6 +9,7 @@ import express from 'express'
 import rateLimit from 'express-rate-limit'
 import { OAuth2Client } from 'google-auth-library'
 import { sendNotification, setVapidDetails } from 'web-push'
+import { startBackups } from './backup.js'
 
 const rootDir = fileURLToPath(new URL('../', import.meta.url))
 const databasePath = process.env.DATABASE_PATH || path.join(rootDir, 'data', 'push.sqlite')
@@ -580,11 +581,20 @@ const reminderInterval = setInterval(() => {
 }, 15_000)
 processDueReminders().catch(error => console.error('Reminder scheduler failed:', error))
 
+const backupDirectory = process.env.BACKUP_DIR || path.join(path.dirname(path.resolve(databasePath)), 'backups')
+const stopBackups = startBackups({
+  db,
+  directory: backupDirectory,
+  intervalHours: Number(process.env.BACKUP_INTERVAL_HOURS ?? 24),
+  keep: Math.max(1, Number(process.env.BACKUP_KEEP ?? 7)),
+})
+
 let shuttingDown = false
 const shutdown = () => {
   if (shuttingDown) return
   shuttingDown = true
   clearInterval(reminderInterval)
+  stopBackups()
   server.close(() => {
     db.close()
   })
