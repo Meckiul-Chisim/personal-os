@@ -70,6 +70,25 @@ Push reminders are optional and require a backend server that stays online. When
 
 After upgrading an existing deployment, re-enable push reminders on each device. Previously saved push subscriptions are not migrated to account ownership.
 
+## Deploy
+
+Personal OS needs an always-on Node host with a **persistent disk**, because it uses SQLite and runs the reminder scheduler. Serverless hosts such as Vercel are not suitable. HTTPS is required for push notifications and Google sign-in.
+
+1. Generate push keys: `npm run generate:vapid`.
+2. Set `GOOGLE_CLIENT_ID`, `VAPID_SUBJECT`, `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` (see `.env.example`).
+3. Run the container, with a volume on `/data`:
+
+```bash
+docker build -t personal-os .
+docker run -p 3001:3001 -v personal-os-data:/data --env-file .env personal-os
+```
+
+On Render, `render.yaml` is a ready Blueprint (Docker, 1 GB disk, health check). Persistent disks need a paid instance. Without Docker: `npm ci && npm run build && npm start`.
+
+### Backups
+
+The server writes a consistent copy of the database to `BACKUP_DIR` (default: a `backups` folder next to the database) every `BACKUP_INTERVAL_HOURS` (default 24, `0` disables) and keeps the newest `BACKUP_KEEP` (default 7). To restore, stop the server and copy a backup over the database file. Backups live on the same disk as the database, so also copy them somewhere else now and then, or keep taking JSON exports from Settings.
+
 ## Data and privacy
 
 Account data is stored in the server-side SQLite database and also cached in the signed-in account's browser storage. The server stores account data as readable JSON; host operators with database access can access it. Use a host and database you trust, enable HTTPS, and export a JSON backup regularly.

@@ -1,0 +1,25 @@
+# Render Blueprint. Deploys the Docker image with a persistent disk for SQLite.
+# Note: persistent disks need a paid Render instance type (not the free tier).
+services:
+  - type: web
+    name: personal-os
+    runtime: docker
+    plan: starter
+    healthCheckPath: /api/health
+    disk:
+      name: personal-os-data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: DATABASE_PATH
+        value: /data/push.sqlite
+      - key: BACKUP_DIR
+        value: /data/backups
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: VAPID_SUBJECT
+        sync: false
+      - key: VAPID_PUBLIC_KEY
+        sync: false
+      - key: VAPID_PRIVATE_KEY
+        sync: false
