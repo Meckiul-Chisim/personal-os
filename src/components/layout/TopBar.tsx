@@ -1,5 +1,6 @@
 import { LogOut, Moon, Plus, Sun } from 'lucide-react'
 import { useNow } from '../../hooks/useNow'
+import { Logo } from '../ui/Logo'
 import type { Theme } from '../../types'
 
 /** Page title, today's date and the quick actions (theme, new task, sign out). */
@@ -15,9 +16,12 @@ export function TopBar({ title, sectionLabel, theme, onToggleTheme, onNewTask, o
 
   return (
     <header className="po-topbar">
-      <div>
-        <span className="po-breadcrumb">Personal OS / {sectionLabel}</span>
-        <h1>{title}</h1>
+      <div className="po-topbar-title">
+        <Logo size={36} className="po-topbar-logo" />
+        <div>
+          <span className="po-breadcrumb">Personal OS / {sectionLabel}</span>
+          <h1>{title}</h1>
+        </div>
       </div>
       <div className="po-top-actions">
         <span className="po-today-chip">{now.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>

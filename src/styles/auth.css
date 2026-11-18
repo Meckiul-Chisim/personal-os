@@ -38,12 +38,6 @@
   color: var(--text-soft);
 }
 
-.po-auth-card .po-brand-mark {
-  width: 46px;
-  height: 46px;
-  border-radius: 14px;
-}
-
 .po-migration-card {
   width: min(100%, 520px);
 }
