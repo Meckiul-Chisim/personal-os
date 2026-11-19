@@ -1,6 +1,7 @@
 import { Download, Upload } from 'lucide-react'
 import type { RefObject } from 'react'
 import { Panel } from '../../components/ui/Panel'
+import { promptInstall, usePwa } from '../../lib/pwa'
 import type { PushStatus } from '../../hooks/usePushReminders'
 import type { Account, SyncState, Theme } from '../../types'
 
@@ -35,6 +36,7 @@ const SYNC_LABEL: Record<SyncState, string> = {
 }
 
 export function SettingsPage({ account, theme, onThemeChange, onSignOut, syncState, syncError, onReloadCloudData, onRetrySync, googleButtonRef, googleConfigured, googleError, push, onExport, onImport }: Props) {
+  const pwa = usePwa()
   const signInMethods = [account.passwordLoginEnabled ? 'Email and password' : '', account.googleLinked ? 'Google' : ''].filter(Boolean).join(' · ')
   const pushLabel = push.status === 'checking'
     ? 'Connecting and syncing reminders…'
@@ -57,6 +59,16 @@ export function SettingsPage({ account, theme, onThemeChange, onSignOut, syncSta
         {googleError && <p className="po-push-error" role="alert">{googleError}</p>}
         {!account.googleLinked && <p className="po-auth-note">Email verification and password recovery are not available yet. Keep a backup of your data.</p>}
         <div className="po-settings-actions"><button type="button" className="po-secondary" onClick={onSignOut}>Sign out</button></div>
+      </Panel>
+
+      <Panel title="Install the app">
+        <p className="po-settings-copy">
+          {pwa.installed
+            ? 'Personal OS is installed on this device. New versions load automatically; you will be asked to reload when one is ready.'
+            : 'Install Personal OS to open it in its own window or from your home screen. Updates arrive automatically.'}
+        </p>
+        {pwa.canInstall && <div className="po-settings-actions"><button type="button" className="po-primary" onClick={() => void promptInstall()}><Download size={16} aria-hidden="true" /> Install Personal OS</button></div>}
+        {!pwa.installed && !pwa.canInstall && <p className="po-auth-note">If there is no install button, use your browser’s menu: “Install app” or “Add to Home Screen”.</p>}
       </Panel>
 
       <Panel title="Cloud sync">
